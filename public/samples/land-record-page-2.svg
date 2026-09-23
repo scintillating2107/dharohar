@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1100" viewBox="0 0 800 1100">
+  <rect width="800" height="1100" fill="#faf8f5"/>
+  <rect x="40" y="40" width="720" height="1020" fill="none" stroke="#ccc" stroke-width="2"/>
+  <text x="400" y="80" text-anchor="middle" font-family="serif" font-size="22" fill="#333">*@0# 5?50#  Registration Details</text>
+  <text x="60" y="150" font-family="serif" font-size="16" fill="#555">*@0# 8M/>: REG-2024-4521</text>
+  <text x="60" y="200" font-family="serif" font-size="16" fill="#555">&8M$>5G< *M0>0: -B.? -?2G</text>
+  <text x="60" y="250" font-family="serif" font-size="16" fill="#555">&?(>: 15/08/2023</text>
+  <text x="60" y="320" font-family="serif" font-size="18" fill="#333">Mutation Details</text>
+  <text x="60" y="360" font-family="serif" font-size="16" fill="#555">Mutation No: MUT-2023-1189</text>
+  <text x="60" y="390" font-family="serif" font-size="16" fill="#555">Mutation Date: 2023-08-15</text>
+  <text x="400" y="1050" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#999">Page 2  Sample Document (Demo)</text>
+</svg>

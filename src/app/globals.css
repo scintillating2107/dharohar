@@ -1,0 +1,122 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+/* ─── Government Design System ─── */
+:root {
+  --gov-navy: #0c2340;
+  --gov-navy-light: #1a4480;
+  --gov-navy-muted: #2c5282;
+  --gov-saffron: #e8750a;
+  --gov-green: #1a7f37;
+  --gov-green-light: #dcfce7;
+  --gov-bg: #eef2f7;
+  --gov-bg-subtle: #f7f9fc;
+  --gov-surface: #ffffff;
+  --gov-border: #d1dbe8;
+  --gov-border-light: #e8edf4;
+  --gov-text: #1a202c;
+  --gov-text-muted: #5a6578;
+  --gov-text-light: #8896a8;
+  --foreground: var(--gov-text);
+  --background: var(--gov-bg);
+  --sidebar-width: 17rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-gov-navy: var(--gov-navy);
+  --color-gov-navy-light: var(--gov-navy-light);
+  --color-gov-saffron: var(--gov-saffron);
+  --color-gov-green: var(--gov-green);
+  --font-sans: var(--font-source);
+}
+
+body {
+  background: var(--gov-bg);
+  color: var(--gov-text);
+  font-family: var(--font-source), "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Tricolor accent stripe (Indian government convention) */
+.gov-tricolor {
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    #ff9933 33.33%,
+    #ffffff 33.33% 66.66%,
+    #138808 66.66%
+  );
+}
+
+/* Official page header underline */
+.gov-section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--gov-navy);
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--gov-saffron);
+  display: inline-block;
+}
+
+/* Card elevation */
+.gov-card {
+  background: var(--gov-surface);
+  border: 1px solid var(--gov-border-light);
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(12, 35, 64, 0.06), 0 1px 2px rgba(12, 35, 64, 0.04);
+}
+
+.gov-card-header {
+  background: linear-gradient(to bottom, #fafbfd, #f4f7fb);
+  border-bottom: 1px solid var(--gov-border-light);
+  padding: 0.875rem 1.25rem;
+}
+
+/* Data table gov style */
+.gov-table thead {
+  background: var(--gov-navy);
+  color: white;
+}
+
+.gov-table thead th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.75rem 1rem;
+}
+
+.gov-table tbody tr:hover {
+  background: #f0f5fa;
+}
+
+/* Focus rings — accessible */
+:focus-visible {
+  outline: 2px solid var(--gov-navy-light);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b0bec5;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #78909c;
+}

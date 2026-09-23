@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1100" viewBox="0 0 800 1100">
+  <rect width="800" height="1100" fill="#faf8f5"/>
+  <rect x="40" y="40" width="720" height="1020" fill="none" stroke="#ccc" stroke-width="2"/>
+  <text x="400" y="80" text-anchor="middle" font-family="serif" font-size="24" fill="#333">-B.? -?2G  Land Record</text>
+  <text x="60" y="140" font-family="serif" font-size="16" fill="#555">80> 8M/>: 235/1</text>
+  <text x="60" y="170" font-family="serif" font-size="16" fill="#555">>$> 8M/>: 124</text>
+  <text x="60" y="220" font-family="serif" font-size="16" fill="#333">.>2? > (>.: 0>. 8?9</text>
+  <text x="60" y="250" font-family="serif" font-size="16" fill="#333">*?$> > (>.: .K9( 8?9</text>
+  <text x="60" y="300" font-family="serif" font-size="16" fill="#555">M7G$M0+2: 0.2450 9GMG/0</text>
+  <text x="60" y="350" font-family="serif" font-size="16" fill="#555">>5: ?(9</text>
+  <text x="60" y="380" font-family="serif" font-size="16" fill="#555">$98@2: 8&0</text>
+  <text x="60" y="410" font-family="serif" font-size="16" fill="#555">?2>: 2(
+</text>
+  <rect x="115" y="195" width="240" height="50" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+  <rect x="115" y="255" width="240" height="50" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+  <text x="400" y="1050" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#999">Page 1  Sample Document (Demo)</text>
+</svg>

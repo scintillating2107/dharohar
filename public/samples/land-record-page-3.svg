@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1100" viewBox="0 0 800 1100">
+  <rect width="800" height="1100" fill="#faf8f5"/>
+  <rect x="40" y="40" width="720" height="1020" fill="none" stroke="#ccc" stroke-width="2"/>
+  <text x="400" y="80" text-anchor="middle" font-family="serif" font-size="22" fill="#333">8>M70  Signatures &amp; Seal</text>
+  <rect x="60" y="150" width="300" height="80" fill="none" stroke="#aaa" stroke-dasharray="4"/>
+  <text x="210" y="200" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#999">Tehsildar Signature</text>
+  <rect x="420" y="150" width="300" height="80" fill="none" stroke="#aaa" stroke-dasharray="4"/>
+  <text x="570" y="200" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#999">Official Seal</text>
+  <text x="400" y="1050" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#999">Page 3  Sample Document (Demo)</text>
+</svg>
