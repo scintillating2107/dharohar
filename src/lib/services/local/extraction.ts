@@ -70,3 +70,260 @@ export async function extractFieldsLocal(
 
   return { document_id: documentId, fields };
 }
+
+import { GoogleGenAI, Type } from "@google/genai";
+
+export async function runGeminiExtraction(
+  documentId: string,
+  ocrText: string
+) {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
+
+  if (!ocrText || !ocrText.trim()) {
+    throw new Error("OCR text is required");
+  }
+
+  const ai = new GoogleGenAI({
+    apiKey,
+  });
+
+  const prompt = `
+You are Member 4 of an Indian land-record digitization system.
+
+Your task is SEMANTIC FIELD EXTRACTION from OCR text.
+
+IMPORTANT:
+- The input is already OCR text.
+- Do NOT perform OCR.
+- Do NOT invent information.
+- Do NOT guess missing values.
+- Do NOT validate whether the information is legally correct.
+- Do NOT compare records.
+- Extract only information that is actually present in the OCR text.
+
+Extract these land-record fields when available:
+
+1. owner_name
+2. father_name
+3. khasra_number
+4. khata_number
+5. village
+6. tehsil
+7. district
+8. state
+9. area
+10. land_type
+
+For every extracted field return:
+- value
+- confidence between 0 and 1
+
+For area:
+- normalize the numeric value when possible
+- return the unit separately
+- use hectare when the OCR text explicitly gives hectare/hectare-equivalent information
+- do not convert units unless the conversion is unambiguous
+
+Confidence means:
+How confident are you that the extracted OCR text corresponds to this semantic field?
+
+This is NOT OCR confidence.
+
+If a field is not present, return null.
+
+OCR TEXT:
+${ocrText}
+`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+
+    config: {
+      responseMimeType: "application/json",
+
+      responseSchema: {
+        type: Type.OBJECT,
+
+        properties: {
+          owner_name: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+              value: {
+                type: Type.STRING,
+              },
+              confidence: {
+                type: Type.NUMBER,
+              },
+            },
+            required: ["value", "confidence"],
+          },
+
+          father_name: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+              value: {
+                type: Type.STRING,
+              },
+              confidence: {
+                type: Type.NUMBER,
+              },
+            },
+            required: ["value", "confidence"],
+          },
+
+          khasra_number: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+              value: {
+                type: Type.STRING,
+              },
+              confidence: {
+                type: Type.NUMBER,
+              },
+            },
+            required: ["value", "confidence"],
+          },
+
+          khata_number: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+              value: {
+                type: Type.STRING,
+              },
+              confidence: {
+                type: Type.NUMBER,
+              },
+            },
+            required: ["value", "confidence"],
+          },
+
+          village: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+              value: {
+                type: Type.STRING,
+              },
+              confidence: {
+                type: Type.NUMBER,
+              },
+            },
+            required: ["value", "confidence"],
+          },
+
+          tehsil: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+              value: {
+                type: Type.STRING,
+              },
+              confidence: {
+                type: Type.NUMBER,
+              },
+            },
+            required: ["value", "confidence"],
+          },
+
+          district: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+              value: {
+                type: Type.STRING,
+              },
+              confidence: {
+                type: Type.NUMBER,
+              },
+            },
+            required: ["value", "confidence"],
+          },
+
+          state: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+              value: {
+                type: Type.STRING,
+              },
+              confidence: {
+                type: Type.NUMBER,
+              },
+            },
+            required: ["value", "confidence"],
+          },
+
+          area: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+              value: {
+                type: Type.STRING,
+              },
+              unit: {
+                type: Type.STRING,
+              },
+              confidence: {
+                type: Type.NUMBER,
+              },
+            },
+            required: ["value", "unit", "confidence"],
+          },
+
+          land_type: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+              value: {
+                type: Type.STRING,
+              },
+              confidence: {
+                type: Type.NUMBER,
+              },
+            },
+            required: ["value", "confidence"],
+          },
+        },
+
+        required: [
+          "owner_name",
+          "father_name",
+          "khasra_number",
+          "khata_number",
+          "village",
+          "tehsil",
+          "district",
+          "state",
+          "area",
+          "land_type",
+        ],
+      },
+    },
+  });
+
+  if (!response.text) {
+    throw new Error("Gemini returned an empty extraction response");
+  }
+
+  let fields;
+
+  try {
+    fields = JSON.parse(response.text);
+  } catch {
+    throw new Error("Gemini returned invalid JSON");
+  }
+
+  return {
+    document_id: documentId,
+    fields,
+  };
+}

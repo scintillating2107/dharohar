@@ -1,40 +1,162 @@
 import type { OCRResult } from "@/types";
-import { store } from "@/lib/store";
-import { ensurePageImages, readPageImageBuffer } from "@/lib/file-storage";
-import { recognizeImageBuffer } from "@/lib/ocr-engine";
-import { buildRegionsFromExtraction, extractFieldsFromOcrWords } from "@/lib/field-extraction";
+import { GoogleGenAI, Type } from "@google/genai";
 
-export async function runOCRLocal(documentId: string): Promise<OCRResult> {
-  const doc = store.getDocument(documentId);
-  if (!doc) throw new Error("Document not found");
+export async function runGeminiOCR(
+  documentId: string,
+  imageBuffer: Buffer,
+  mimeType: string
+): Promise<OCRResult> {
 
-  const pageCount = await ensurePageImages(documentId);
-  const pages = [];
+  const apiKey = process.env.GEMINI_API_KEY;
 
-  for (let pageNum = 1; pageNum <= pageCount; pageNum += 1) {
-    const buffer = await readPageImageBuffer(documentId, pageNum);
-    if (!buffer) throw new Error(`Cannot OCR page ${pageNum}: image not found`);
-
-    const ocr = await recognizeImageBuffer(buffer);
-    const fields = extractFieldsFromOcrWords(ocr.text, ocr.words, {
-      district: doc.district,
-      state: doc.state,
-    });
-    const regions = buildRegionsFromExtraction(fields, ocr.words);
-
-    pages.push({
-      page: pageNum,
-      language: ocr.language,
-      text: ocr.text || fields.raw_text,
-      regions,
-    });
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured");
   }
 
-  if (pages.every((p) => !p.text.trim())) {
-    throw new Error(
-      "OCR could not read any text from the document. Upload a clearer scan or higher-resolution file."
-    );
+  const ai = new GoogleGenAI({
+    apiKey,
+  });
+
+  const base64Image = imageBuffer.toString("base64");
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+
+    contents: [
+      {
+        inlineData: {
+          mimeType,
+          data: base64Image,
+        },
+      },
+
+      {
+        text: `
+You are an OCR engine for Indian land-record documents.
+
+Read ALL visible text from this image.
+
+The document can contain:
+- Hindi
+- English
+- Hindi + English
+- Printed text
+- Handwritten text
+
+Your job is ONLY OCR.
+
+Do NOT:
+- infer missing information
+- correct text using assumptions
+- identify semantic fields
+- validate land-record information
+- guess unclear characters
+
+Return the text exactly as visible.
+
+For every readable text region return:
+- text
+- confidence between 0 and 1
+- bounding box
+
+Bounding box format:
+[x1, y1, x2, y2]
+
+Also detect the document language:
+"hi", "en", "mixed", or "other".
+
+Preserve numbers exactly as written.
+`
+      }
+    ],
+
+    config: {
+      responseMimeType: "application/json",
+
+      responseSchema: {
+        type: Type.OBJECT,
+
+        properties: {
+          language: {
+            type: Type.STRING,
+          },
+
+          text: {
+            type: Type.STRING,
+          },
+
+          regions: {
+            type: Type.ARRAY,
+
+            items: {
+              type: Type.OBJECT,
+
+              properties: {
+                text: {
+                  type: Type.STRING,
+                },
+
+                confidence: {
+                  type: Type.NUMBER,
+                },
+
+                bbox: {
+                  type: Type.ARRAY,
+
+                  items: {
+                    type: Type.NUMBER,
+                  },
+                },
+              },
+
+              required: [
+                "text",
+                "confidence",
+                "bbox",
+              ],
+            },
+          },
+        },
+
+        required: [
+          "language",
+          "text",
+          "regions",
+        ],
+      },
+    },
+  });
+
+  if (!response.text) {
+    throw new Error("Gemini returned an empty OCR response");
   }
 
-  return { document_id: documentId, pages };
+  let parsed: {
+    language: string;
+    text: string;
+    regions: {
+      text: string;
+      confidence: number;
+      bbox: number[];
+    }[];
+  };
+
+  try {
+    parsed = JSON.parse(response.text);
+  } catch {
+    throw new Error("Gemini returned invalid JSON");
+  }
+
+  return {
+    document_id: documentId,
+
+    pages: [
+      {
+        page: 1,
+        language: parsed.language,
+        text: parsed.text,
+        regions: parsed.regions,
+      },
+    ],
+  } as OCRResult;
 }
