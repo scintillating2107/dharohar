@@ -37,6 +37,7 @@ Open [http://localhost:3000](http://localhost:3000)
 | Verification Officer | verification@dharohar.gov | verify123 |
 | Data Officer | data@dharohar.gov | data123 |
 | Survey Officer | survey@dharohar.gov | survey123 |
+| Citizen | citizen@dharohar.gov | citizen123 |
 
 ## Real Workflow
 
@@ -90,7 +91,8 @@ docs/
 | Route | Description |
 |-------|-------------|
 | `/login` | Authentication |
-| `/dashboard` | Operational dashboard |
+| `/dashboard` | Operational dashboard (officers) |
+| `/citizen/dashboard` | Citizen portal — my records, services, district verified list |
 | `/documents` | Document list |
 | `/documents/upload` | Upload workflow |
 | `/documents/[id]` | Document details |

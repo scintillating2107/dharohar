@@ -14,7 +14,13 @@ import { apiGet, apiPost } from "@/lib/api-client";
 import { formatRole, formatDateShort } from "@/lib/utils";
 import type { User, UserRole } from "@/types";
 
-const ROLES: UserRole[] = ["ADMIN", "VERIFICATION_OFFICER", "DATA_OFFICER", "SURVEY_OFFICER"];
+const ROLES: UserRole[] = [
+  "ADMIN",
+  "VERIFICATION_OFFICER",
+  "DATA_OFFICER",
+  "SURVEY_OFFICER",
+  "CITIZEN",
+];
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);

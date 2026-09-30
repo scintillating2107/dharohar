@@ -1,0 +1,3 @@
+# Use scripts/run-member2-ml.ps1 (Python 3.12 venv + staged install).
+# Manual: requirements-base.txt, then torch CPU, then requirements-ml.txt with basicsr --no-build-isolation
+-r requirements-base.txt

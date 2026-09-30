@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { JWT_SECRET } from "@/lib/config";
 import { roleCanAccess } from "@/lib/rbac";
+import { getHomePathForRole, isCitizenRole } from "@/lib/citizen";
 import type { UserRole } from "@/types";
 
 const secret = new TextEncoder().encode(JWT_SECRET);
@@ -35,14 +36,28 @@ export async function middleware(request: NextRequest) {
 
   if (pathname === "/") {
     const url = request.nextUrl.clone();
-    url.pathname = token ? "/dashboard" : "/login";
+    if (!token) {
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
+    try {
+      const { payload } = await jwtVerify(token, secret);
+      url.pathname = getHomePathForRole(payload.role as string);
+    } catch {
+      url.pathname = "/login";
+    }
     return NextResponse.redirect(url);
   }
 
   if (isPublic) {
     if (token && pathname === "/login") {
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
+      try {
+        const { payload } = await jwtVerify(token, secret);
+        url.pathname = getHomePathForRole(payload.role as string);
+      } catch {
+        url.pathname = "/dashboard";
+      }
       return NextResponse.redirect(url);
     }
     return NextResponse.next();
@@ -61,12 +76,23 @@ export async function middleware(request: NextRequest) {
     const { payload } = await jwtVerify(token, secret);
     const role = payload.role as UserRole;
 
+    if (isCitizenRole(role) && pathname === "/dashboard") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/citizen/dashboard";
+      return NextResponse.redirect(url);
+    }
+    if (!isCitizenRole(role) && pathname.startsWith("/citizen")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+
     if (!roleCanAccess(role, pathname)) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
       }
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
+      url.pathname = getHomePathForRole(role);
       return NextResponse.redirect(url);
     }
 

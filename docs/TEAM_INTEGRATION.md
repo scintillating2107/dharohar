@@ -16,9 +16,11 @@ How each team member connects their module to Dharohar (Member 1).
 
 **Integration file:** `src/lib/integrations/imageProcessing.ts`
 
+**Service code:** `services/member2-image/ML service (1)/` — see `services/member2-image/README.md`
+
 **Env variable:** `MEMBER2_IMAGE_API_URL=http://your-service:8001`
 
-**Your endpoint:** `POST /process`
+**Your endpoint:** `POST /process` (JSON + `X-Integration-Key`; reads/writes `data/uploads/{document_id}/`)
 
 **Input:**
 ```json

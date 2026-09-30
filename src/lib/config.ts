@@ -98,6 +98,7 @@ export const ROLE_PERMISSIONS: Record<
   ],
   DATA_OFFICER: ["dashboard", "documents", "records", "profile"],
   SURVEY_OFFICER: ["dashboard", "records", "gis", "profile"],
+  CITIZEN: ["citizen", "records", "gis", "profile"],
 };
 
 export const DEMO_CREDENTIALS = [
@@ -120,5 +121,10 @@ export const DEMO_CREDENTIALS = [
     email: "survey@dharohar.gov",
     password: "survey123",
     role: "SURVEY_OFFICER" as const,
+  },
+  {
+    email: "citizen@dharohar.gov",
+    password: "citizen123",
+    role: "CITIZEN" as const,
   },
 ];

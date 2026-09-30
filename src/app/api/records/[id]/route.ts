@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { getSessionPayload } from "@/lib/auth";
 import { store } from "@/lib/store";
-import { apiSuccess, unauthorized, notFound } from "@/lib/api-utils";
+import { isCitizenRole, citizenCanViewRecord } from "@/lib/citizen";
+import { apiSuccess, unauthorized, notFound, forbidden } from "@/lib/api-utils";
 
 export async function GET(
   _request: NextRequest,
@@ -13,6 +14,11 @@ export async function GET(
   const { id } = await params;
   const record = store.getRecord(id);
   if (!record) return notFound("Record not found");
+
+  const user = store.users.find((u) => u.id === session.userId);
+  if (isCitizenRole(session.role) && user && !citizenCanViewRecord(record, user)) {
+    return forbidden("This record is not available for public view");
+  }
 
   const document = store.getDocument(record.document_id);
   const auditEvents = store.auditEvents.filter((e) => e.recordId === id);

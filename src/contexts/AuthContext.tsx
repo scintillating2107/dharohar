@@ -14,7 +14,7 @@ import { apiGet, apiPost } from "@/lib/api-client";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
     setUser(data.user);
+    return data.user;
   };
 
   const logout = async () => {

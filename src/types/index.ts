@@ -3,7 +3,8 @@ export type UserRole =
   | "ADMIN"
   | "VERIFICATION_OFFICER"
   | "DATA_OFFICER"
-  | "SURVEY_OFFICER";
+  | "SURVEY_OFFICER"
+  | "CITIZEN";
 
 export interface User {
   id: string;

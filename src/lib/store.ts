@@ -46,6 +46,7 @@ function createInitialStore(): PersistedStore {
       { id: "U002", email: "verification@dharohar.gov", name: "Rajesh Kumar", role: "VERIFICATION_OFFICER", district: "Lucknow", createdAt: now },
       { id: "U003", email: "data@dharohar.gov", name: "Priya Sharma", role: "DATA_OFFICER", district: "Lucknow", createdAt: now },
       { id: "U004", email: "survey@dharohar.gov", name: "Amit Verma", role: "SURVEY_OFFICER", district: "Lucknow", createdAt: now },
+      { id: "U005", email: "citizen@dharohar.gov", name: "Ramesh Singh", role: "CITIZEN", district: "Lucknow", createdAt: now },
     ],
     passwordHashes: {},
     documents: [],
@@ -56,9 +57,25 @@ function createInitialStore(): PersistedStore {
   };
 }
 
+function mergeMissingDemoUsers(data: PersistedStore): PersistedStore {
+  const initialUsers = createInitialStore().users;
+  let changed = false;
+  for (const u of initialUsers) {
+    if (!data.users.some((x) => x.email === u.email)) {
+      data.users.push(u);
+      changed = true;
+    }
+  }
+  if (changed) persistToDisk(data);
+  return data;
+}
+
 function loadStoreFromDisk(): PersistedStore {
   if (existsSync(STORE_FILE)) {
-    return JSON.parse(readFileSync(/* turbopackIgnore: true */ STORE_FILE, "utf-8")) as PersistedStore;
+    const parsed = JSON.parse(
+      readFileSync(/* turbopackIgnore: true */ STORE_FILE, "utf-8")
+    ) as PersistedStore;
+    return mergeMissingDemoUsers(parsed);
   }
   const initial = createInitialStore();
   persistToDisk(initial);

@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Home,
 } from "lucide-react";
 import { useState } from "react";
 import { cn, formatRole } from "@/lib/utils";
@@ -24,6 +25,7 @@ import { ROLE_PERMISSIONS } from "@/lib/config";
 import { GovEmblem } from "./GovBranding";
 
 const NAV_ITEMS = [
+  { href: "/citizen/dashboard", label: "Citizen Portal", icon: Home, permission: "citizen" },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
   { href: "/documents", label: "Documents", icon: FileText, permission: "documents" },
   { href: "/verification", label: "Verification", icon: CheckSquare, permission: "verification" },

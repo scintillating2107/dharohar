@@ -43,6 +43,7 @@ UPLOAD → PDF/IMAGE PROCESSING → OCR → FIELD EXTRACTION
 | VERIFICATION_OFFICER | Verification, records, validation, audit |
 | DATA_OFFICER | Documents, records |
 | SURVEY_OFFICER | Records, GIS |
+| CITIZEN | Citizen portal, verified record search, GIS |
 
 ## Data Flow
 

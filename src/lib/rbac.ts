@@ -3,6 +3,7 @@ import { ROLE_PERMISSIONS } from "./config";
 
 /** Maps URL prefixes to required permission keys */
 export const ROUTE_PERMISSION_MAP: Record<string, string> = {
+  "/citizen": "citizen",
   "/dashboard": "dashboard",
   "/documents": "documents",
   "/verification": "verification",
@@ -23,6 +24,7 @@ export const API_PERMISSION_MAP: Record<string, string> = {
   "/api/audit": "audit",
   "/api/users": "users",
   "/api/dashboard": "dashboard",
+  "/api/citizen": "citizen",
   "/api/notifications": "dashboard",
   "/api/integrations": "dashboard",
 };

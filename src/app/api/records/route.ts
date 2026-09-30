@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { getSessionPayload } from "@/lib/auth";
 import { store } from "@/lib/store";
-import { apiSuccess, unauthorized, notFound } from "@/lib/api-utils";
+import { isCitizenRole, citizenCanViewRecord } from "@/lib/citizen";
+import { apiSuccess, unauthorized } from "@/lib/api-utils";
 
 export async function GET(request: NextRequest) {
   const session = await getSessionPayload();
@@ -15,6 +16,11 @@ export async function GET(request: NextRequest) {
   const district = searchParams.get("district");
 
   let items = [...store.records];
+  const user = store.users.find((u) => u.id === session.userId);
+
+  if (isCitizenRole(session.role) && user) {
+    items = items.filter((r) => citizenCanViewRecord(r, user));
+  }
 
   if (status) items = items.filter((r) => r.status === status);
   if (district) items = items.filter((r) => r.district === district);

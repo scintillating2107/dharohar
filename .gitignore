@@ -43,3 +43,15 @@ next-env.d.ts
 # uploaded documents and persisted store
 /data/uploads
 /data/dharohar-store.json
+
+# teammate ML weights (keep code in services/, share models.zip offline)
+/services/**/models/
+/services/**/*.pt
+/services/**/*.pth
+/services/**/*.onnx
+/services/**/*.h5
+/services/**/*.pkl
+/services/**/*.zip
+/services/**/venv/
+**/__pycache__/
+**/.pytest_cache/

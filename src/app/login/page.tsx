@@ -7,6 +7,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DEMO_CREDENTIALS } from "@/lib/config";
+import { getHomePathForRole } from "@/lib/citizen";
 import { LoadingState } from "@/components/ui/States";
 import { GovHeader, GovEmblem, GovTricolor } from "@/components/layout/GovBranding";
 import {
@@ -26,7 +27,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!authLoading && user) router.replace("/dashboard");
+    if (!authLoading && user) router.replace(getHomePathForRole(user.role));
   }, [user, authLoading, router]);
 
   if (authLoading) return (
@@ -40,9 +41,9 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
+      const loggedIn = await login(email, password);
       toast("Login successful", "success");
-      router.push("/dashboard");
+      router.push(getHomePathForRole(loggedIn.role));
     } catch {
       toast("Invalid credentials. Please try again.", "error");
     } finally {
