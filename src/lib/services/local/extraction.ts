@@ -77,7 +77,8 @@ export async function runGeminiExtraction(
   documentId: string,
   ocrText: string
 ) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const { getGeminiApiKey } = await import("@/lib/gemini-env");
+  const apiKey = getGeminiApiKey();
 
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured");

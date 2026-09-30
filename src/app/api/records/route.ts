@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
   let items = [...store.records];
   const user = store.users.find((u) => u.id === session.userId);
 
-  if (isCitizenRole(session.role) && user) {
+  const role = user?.role ?? session.role;
+  if (isCitizenRole(role) && user) {
     items = items.filter((r) => citizenCanViewRecord(r, user));
   }
 

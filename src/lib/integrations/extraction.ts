@@ -1,7 +1,20 @@
-import type { ExtractionResult, OCRResult } from "@/types";
+import type { ExtractionResult, OCRResult, ExtractedFieldValue } from "@/types";
 import { mockExtractionResult } from "@/mocks/data";
-import { extractFieldsLocal } from "@/lib/services/local";
+import { extractFieldsLocal, runGeminiExtraction } from "@/lib/services/local";
+import { getGeminiApiKey } from "@/lib/gemini-env";
 import { callExternal, INTEGRATION_URLS, isMockMode, IntegrationError } from "./client";
+
+function normalizeGeminiFields(
+  raw: Record<string, ExtractedFieldValue | null | undefined>
+): ExtractionResult["fields"] {
+  const fields: ExtractionResult["fields"] = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (value && typeof value === "object" && value.value?.trim()) {
+      fields[key] = value;
+    }
+  }
+  return fields;
+}
 
 export async function extractFields(
   documentId: string,
@@ -25,6 +38,22 @@ export async function extractFields(
         "Field extraction service unavailable",
         "Field Extraction (Member 4)"
       );
+    }
+  }
+
+  const apiKey = getGeminiApiKey();
+  if (apiKey && ocrResult?.pages?.length) {
+    const ocrText = ocrResult.pages.map((p) => p.text).join("\n").trim();
+    if (ocrText) {
+      try {
+        const gemini = await runGeminiExtraction(documentId, ocrText);
+        const fields = normalizeGeminiFields(gemini.fields as Record<string, ExtractedFieldValue | null>);
+        if (Object.keys(fields).length > 0) {
+          return { document_id: documentId, fields };
+        }
+      } catch (err) {
+        console.error("Member 4 Gemini extraction failed, using rule-based fallback:", err);
+      }
     }
   }
 

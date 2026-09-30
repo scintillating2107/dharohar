@@ -8,7 +8,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { LoadingState, ErrorState } from "@/components/ui/States";
-import { apiGet } from "@/lib/api-client";
+import { apiGet, ApiError } from "@/lib/api-client";
 import { formatDateShort } from "@/lib/utils";
 import {
   Home,
@@ -77,8 +77,14 @@ export default function CitizenDashboardPage() {
     try {
       const result = await apiGet<CitizenDashboardData>("/api/citizen/dashboard");
       setData(result);
-    } catch {
-      setError("Could not load your dashboard. Please try again.");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        setError("This page is for citizen accounts. Sign out and use citizen@dharohar.gov / citizen123.");
+      } else if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Could not load your dashboard. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

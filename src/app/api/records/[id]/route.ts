@@ -16,7 +16,8 @@ export async function GET(
   if (!record) return notFound("Record not found");
 
   const user = store.users.find((u) => u.id === session.userId);
-  if (isCitizenRole(session.role) && user && !citizenCanViewRecord(record, user)) {
+  const role = user?.role ?? session.role;
+  if (isCitizenRole(role) && user && !citizenCanViewRecord(record, user)) {
     return forbidden("This record is not available for public view");
   }
 

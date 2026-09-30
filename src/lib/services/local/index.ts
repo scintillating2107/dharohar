@@ -1,6 +1,6 @@
 export { processImagesLocal } from "./imageProcessing";
 export { runOCRLocal } from "./ocr";
-export { extractFieldsLocal } from "./extraction";
+export { extractFieldsLocal, runGeminiExtraction } from "./extraction";
 export { validateRecordLocal } from "./validation";
 export {
   persistRecordLocal,

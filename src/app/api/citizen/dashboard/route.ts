@@ -6,10 +6,14 @@ import { apiSuccess, unauthorized, forbidden } from "@/lib/api-utils";
 export async function GET() {
   const session = await getSessionPayload();
   if (!session) return unauthorized();
-  if (!isCitizenRole(session.role)) return forbidden();
 
   const user = store.users.find((u) => u.id === session.userId);
   if (!user) return unauthorized();
+
+  const role = user.role ?? session.role;
+  if (!isCitizenRole(role)) {
+    return forbidden("Citizen portal is only available to citizen accounts");
+  }
 
   const district = user.district || "Lucknow";
 

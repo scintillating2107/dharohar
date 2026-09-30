@@ -21,7 +21,13 @@ export async function processImages(
         { document_id: documentId, page_count: pageCount, file_reference: fileReference }
       );
     } catch (err) {
-      if (err instanceof IntegrationError) throw err;
+      if (err instanceof IntegrationError) {
+        console.warn(
+          "Member 2 service unavailable, falling back to local image processing:",
+          err.message
+        );
+        return processImagesLocal(documentId, pageCount);
+      }
       throw new IntegrationError(
         "Image processing service unavailable",
         "Image Processing (Member 2)"

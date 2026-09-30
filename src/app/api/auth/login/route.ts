@@ -21,17 +21,31 @@ export async function POST(request: NextRequest) {
       return apiError("Email and password are required");
     }
 
-    const user = store.users.find(
+    let user = store.users.find(
       (u) => u.email.toLowerCase() === email.toLowerCase()
     );
-
-    if (!user) {
-      return apiError("Invalid credentials", 401);
-    }
 
     const demoCred = DEMO_CREDENTIALS.find(
       (c) => c.email.toLowerCase() === email.toLowerCase()
     );
+
+    if (!user && demoCred?.role === "CITIZEN") {
+      const now = new Date().toISOString();
+      user = {
+        id: "U005",
+        email: demoCred.email,
+        name: "Ramesh Singh",
+        role: "CITIZEN",
+        district: "Lucknow",
+        createdAt: now,
+      };
+      const hash = await getDemoHash(demoCred.email, demoCred.password);
+      store.addUser(user, hash);
+    }
+
+    if (!user) {
+      return apiError("Invalid credentials", 401);
+    }
 
     let valid = false;
     if (demoCred) {

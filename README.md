@@ -126,6 +126,8 @@ Check integration status at `/api/integrations/health` or on the Profile page.
 See `docs/API_CONTRACTS.md` for JSON contracts.
 See `docs/TEAM_INTEGRATION.md` for step-by-step integration guide per team member.
 
+**Member 3 & 4 (Gemini OCR + extraction):** see `docs/Member3_Member4.md` — set `GEMINI_API_KEY` in `.env.local` and do not set `MEMBER3_OCR_API_URL` unless using a separate OCR service.
+
 ## Scripts
 
 ```bash

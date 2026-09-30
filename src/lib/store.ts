@@ -91,6 +91,7 @@ function getStoreData(): PersistedStore {
   if (!global.__dharoharStore) {
     global.__dharoharStore = loadStoreFromDisk();
   }
+  global.__dharoharStore = mergeMissingDemoUsers(global.__dharoharStore);
   return global.__dharoharStore;
 }
 
