@@ -25,7 +25,13 @@ export function GovEmblem({ className = "h-10 w-10" }: { className?: string }) {
 }
 
 export function GovTricolor() {
-  return <div className="gov-tricolor w-full" aria-hidden="true" />;
+  return (
+    <div className="gov-tricolor" aria-hidden="true">
+      <span className="gov-tricolor__band gov-tricolor__saffron" />
+      <span className="gov-tricolor__band gov-tricolor__white" />
+      <span className="gov-tricolor__band gov-tricolor__green" />
+    </div>
+  );
 }
 
 interface GovHeaderProps {
@@ -34,9 +40,11 @@ interface GovHeaderProps {
 
 export function GovHeader({ compact = false }: GovHeaderProps) {
   return (
-    <header className="bg-[var(--gov-navy)] text-white">
+    <header className="w-full bg-[var(--gov-navy)] text-white">
       <GovTricolor />
-      <div className={compact ? "px-4 py-2" : "px-6 py-3 lg:px-8"}>
+      <div
+        className={`max-w-[1400px] mx-auto w-full ${compact ? "px-4 py-2" : "px-4 py-3 lg:px-8"}`}
+      >
         <div className="flex items-center gap-3">
           <div className="flex-shrink-0 text-white/90">
             <GovEmblem className={compact ? "h-8 w-8" : "h-10 w-10"} />

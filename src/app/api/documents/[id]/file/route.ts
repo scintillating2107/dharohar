@@ -5,6 +5,7 @@ import { readStoredFile } from "@/lib/file-storage";
 import { readFile, access } from "fs/promises";
 import path from "path";
 import { unauthorized, notFound } from "@/lib/api-utils";
+import { getUploadsRoot } from "@/lib/data-paths";
 
 export async function GET(
   request: NextRequest,
@@ -22,7 +23,7 @@ export async function GET(
   const page = parseInt(searchParams.get("page") || "1", 10);
 
   if (processed) {
-    const processedPath = path.join(process.cwd(), "data", "uploads", id, `page-${page}.png`);
+    const processedPath = path.join(getUploadsRoot(), id, `page-${page}.png`);
     try {
       await access(processedPath);
       const buffer = await readFile(/* turbopackIgnore: true */ processedPath);

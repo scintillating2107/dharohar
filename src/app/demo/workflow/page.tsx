@@ -17,7 +17,11 @@ export default function PublicDemoWorkflowPage() {
           </div>
           <div className="flex gap-2">
             <Link href="/login">
-              <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="border border-white/35 text-white hover:bg-white/10 hover:text-white"
+              >
                 Sign in
               </Button>
             </Link>

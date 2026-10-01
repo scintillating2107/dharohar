@@ -13,8 +13,9 @@ import { PROCESSING_STEPS } from "./config";
 import { generateId } from "./utils";
 import { mergeDemoSeed, type PersistedStore } from "./seed-demo";
 import { DEMO_RECORD_ID } from "./record-ids";
+import { getDataRoot } from "./data-paths";
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const DATA_DIR = getDataRoot();
 const STORE_FILE = path.join(DATA_DIR, "dharohar-store.json");
 
 export function createInitialSteps(): ProcessingStep[] {

@@ -3,8 +3,9 @@ import path from "path";
 import sharp from "sharp";
 import { extractTextFromPdfBuffer } from "./text-extraction";
 import { renderPdfToPageImages, countRenderedPages } from "./pdf-renderer";
+import { getUploadsRoot } from "./data-paths";
 
-const UPLOAD_ROOT = path.join(process.cwd(), "data", "uploads");
+const UPLOAD_ROOT = getUploadsRoot();
 
 function documentDir(documentId: string): string {
   return path.join(UPLOAD_ROOT, documentId);

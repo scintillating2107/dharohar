@@ -46,13 +46,28 @@ body {
 
 /* Tricolor accent stripe (Indian government convention) */
 .gov-tricolor {
+  display: flex;
+  width: 100%;
   height: 4px;
-  background: linear-gradient(
-    to right,
-    #ff9933 33.33%,
-    #ffffff 33.33% 66.66%,
-    #138808 66.66%
-  );
+  flex-shrink: 0;
+}
+
+.gov-tricolor__band {
+  flex: 1 1 33.333%;
+  min-width: 0;
+  height: 100%;
+}
+
+.gov-tricolor__saffron {
+  background-color: #ff9933;
+}
+
+.gov-tricolor__white {
+  background-color: #ffffff;
+}
+
+.gov-tricolor__green {
+  background-color: #138808;
 }
 
 /* Official page header underline */

@@ -1,7 +1,9 @@
 import { writeFile, access, readFile } from "fs/promises";
 import path from "path";
 
-const UPLOAD_ROOT = path.join(process.cwd(), "data", "uploads");
+import { getUploadsRoot } from "./data-paths";
+
+const UPLOAD_ROOT = getUploadsRoot();
 
 function documentDir(documentId: string): string {
   return path.join(UPLOAD_ROOT, documentId);
