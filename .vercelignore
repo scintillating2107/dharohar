@@ -1,1 +1,2 @@
-services/
+# Root Python/teammate services only — do not ignore src/lib/services/
+/services/
