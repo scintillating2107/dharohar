@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { apiSuccess, apiError } from "@/lib/api-utils";
-import { runGeminiOCR } from "@/lib/services/local/ocr";
+import { runGeminiOCR } from "@/lib/member-local/ocr";
 
 export async function POST(request: NextRequest) {
   try {

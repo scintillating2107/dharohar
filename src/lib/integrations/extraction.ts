@@ -1,6 +1,6 @@
 import type { ExtractionResult, OCRResult, ExtractedFieldValue } from "@/types";
 import { mockExtractionResult } from "@/mocks/data";
-import { extractFieldsLocal, runGeminiExtraction } from "@/lib/services/local";
+import { extractFieldsLocal, runGeminiExtraction } from "@/lib/member-local";
 import { getGeminiApiKey } from "@/lib/gemini-env";
 import { callExternal, INTEGRATION_URLS, isMockMode, IntegrationError } from "./client";
 

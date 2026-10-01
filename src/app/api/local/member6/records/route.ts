@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { persistRecordLocal } from "@/lib/services/local";
+import { persistRecordLocal } from "@/lib/member-local";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 import type { LandRecord } from "@/types";
 

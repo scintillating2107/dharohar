@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { persistParcelLocal, listParcelsLocal } from "@/lib/services/local";
+import { persistParcelLocal, listParcelsLocal } from "@/lib/member-local";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 import type { Parcel } from "@/types";
 

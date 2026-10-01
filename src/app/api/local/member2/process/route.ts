@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { processImagesLocal } from "@/lib/services/local";
+import { processImagesLocal } from "@/lib/member-local";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {

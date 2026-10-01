@@ -4,7 +4,7 @@ import {
   persistParcelLocal,
   fetchRecordLocal,
   listParcelsLocal,
-} from "@/lib/services/local";
+} from "@/lib/member-local";
 import { callExternal, callExternalGet, INTEGRATION_URLS, isMockMode } from "./client";
 
 export async function persistRecord(record: LandRecord): Promise<{ success: boolean }> {

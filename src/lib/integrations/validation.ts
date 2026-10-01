@@ -1,6 +1,6 @@
 import type { ExtractionResult, ValidationResult } from "@/types";
 import { mockValidationResult } from "@/mocks/data";
-import { validateRecordLocal } from "@/lib/services/local";
+import { validateRecordLocal } from "@/lib/member-local";
 import { callExternal, INTEGRATION_URLS, isMockMode, IntegrationError } from "./client";
 
 export async function validateRecord(

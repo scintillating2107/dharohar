@@ -1,6 +1,6 @@
 import type { OCRResult } from "@/types";
 import { mockOCRResult } from "@/mocks/data";
-import { runGeminiOCRFromDocument } from "@/lib/services/local/ocr";
+import { runGeminiOCRFromDocument } from "@/lib/member-local/ocr";
 import { getGeminiApiKey } from "@/lib/gemini-env";
 import {
   callExternal,
@@ -42,7 +42,7 @@ export async function runOCR(
     }
   }
 
-  const { runOCRLocal } = await import("@/lib/services/local/ocr");
+  const { runOCRLocal } = await import("@/lib/member-local/ocr");
   return runOCRLocal(documentId);
 }
 

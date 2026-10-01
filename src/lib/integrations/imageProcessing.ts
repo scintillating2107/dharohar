@@ -1,6 +1,6 @@
 import type { ImageProcessingResult } from "@/types";
 import { mockImageProcessingResult } from "@/mocks/data";
-import { processImagesLocal } from "@/lib/services/local";
+import { processImagesLocal } from "@/lib/member-local";
 import { callExternal, INTEGRATION_URLS, isMockMode, IntegrationError } from "./client";
 
 export async function processImages(

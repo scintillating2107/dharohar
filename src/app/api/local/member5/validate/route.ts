@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { validateRecordLocal } from "@/lib/services/local";
+import { validateRecordLocal } from "@/lib/member-local";
 import { apiSuccess, apiError } from "@/lib/api-utils";
 import type { ExtractionResult } from "@/types";
 

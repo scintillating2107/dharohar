@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { apiSuccess, apiError } from "@/lib/api-utils";
-import { runGeminiExtraction } from "@/lib/services/local/extraction";
+import { runGeminiExtraction } from "@/lib/member-local/extraction";
 
 export async function POST(request: NextRequest) {
   try {
