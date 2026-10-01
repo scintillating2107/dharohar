@@ -7,6 +7,7 @@ import {
   computeStateProgress,
   computeValidationChart,
   computeVerificationChart,
+  computeErrorCategories,
 } from "@/lib/dashboard-stats";
 import { apiSuccess, unauthorized } from "@/lib/api-utils";
 
@@ -52,5 +53,6 @@ export async function GET() {
     recentDocuments,
     recentVerification,
     recentValidationIssues,
+    errorCategories: computeErrorCategories(),
   });
 }

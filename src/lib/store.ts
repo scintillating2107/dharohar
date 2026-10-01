@@ -11,6 +11,8 @@ import type {
 } from "@/types";
 import { PROCESSING_STEPS } from "./config";
 import { generateId } from "./utils";
+import { mergeDemoSeed, type PersistedStore } from "./seed-demo";
+import { DEMO_RECORD_ID } from "./record-ids";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "dharohar-store.json");
@@ -23,22 +25,14 @@ export function createInitialSteps(): ProcessingStep[] {
   }));
 }
 
-interface PersistedStore {
-  users: User[];
-  passwordHashes: Record<string, string>;
-  documents: Document[];
-  records: LandRecord[];
-  verificationTasks: VerificationTask[];
-  auditEvents: AuditEvent[];
-  parcels: Parcel[];
-}
+interface StoreData extends PersistedStore {}
 
 declare global {
   // eslint-disable-next-line no-var
   var __dharoharStore: PersistedStore | undefined;
 }
 
-function createInitialStore(): PersistedStore {
+function createInitialStore(): StoreData {
   const now = new Date().toISOString();
   return {
     users: [
@@ -57,7 +51,7 @@ function createInitialStore(): PersistedStore {
   };
 }
 
-function mergeMissingDemoUsers(data: PersistedStore): PersistedStore {
+function mergeMissingDemoUsers(data: StoreData): StoreData {
   const initialUsers = createInitialStore().users;
   let changed = false;
   for (const u of initialUsers) {
@@ -70,28 +64,42 @@ function mergeMissingDemoUsers(data: PersistedStore): PersistedStore {
   return data;
 }
 
-function loadStoreFromDisk(): PersistedStore {
+function loadStoreFromDisk(): StoreData {
   if (existsSync(STORE_FILE)) {
-    const parsed = JSON.parse(
-      readFileSync(/* turbopackIgnore: true */ STORE_FILE, "utf-8")
-    ) as PersistedStore;
-    return mergeMissingDemoUsers(parsed);
+    try {
+      const raw = readFileSync(/* turbopackIgnore: true */ STORE_FILE, "utf-8");
+      const parsed = JSON.parse(raw) as StoreData;
+      const withUsers = mergeMissingDemoUsers(parsed);
+      const merged = mergeDemoSeed(withUsers);
+      if (!withUsers.records.some((r) => r.record_id === "LR-2026-001245")) {
+        persistToDisk(merged);
+      }
+      return merged;
+    } catch {
+      const initial = mergeDemoSeed(createInitialStore());
+      persistToDisk(initial);
+      return initial;
+    }
   }
-  const initial = createInitialStore();
+  const initial = mergeDemoSeed(createInitialStore());
   persistToDisk(initial);
   return initial;
 }
 
-function persistToDisk(data: PersistedStore): void {
+function persistToDisk(data: StoreData): void {
   mkdirSync(DATA_DIR, { recursive: true });
   writeFileSync(/* turbopackIgnore: true */ STORE_FILE, JSON.stringify(data, null, 2), "utf-8");
 }
 
-function getStoreData(): PersistedStore {
+function getStoreData(): StoreData {
   if (!global.__dharoharStore) {
     global.__dharoharStore = loadStoreFromDisk();
   }
   global.__dharoharStore = mergeMissingDemoUsers(global.__dharoharStore);
+  const before = global.__dharoharStore.records.some((r) => r.record_id === DEMO_RECORD_ID);
+  global.__dharoharStore = mergeDemoSeed(global.__dharoharStore);
+  const after = global.__dharoharStore.records.some((r) => r.record_id === DEMO_RECORD_ID);
+  if (!before && after) persistToDisk(global.__dharoharStore);
   return global.__dharoharStore;
 }
 

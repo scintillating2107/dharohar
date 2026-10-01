@@ -15,9 +15,17 @@ const ACTION_LABELS: Record<string, string> = {
   RECORD_REJECTED: "Record rejected",
   RECORD_SENT_BACK: "Record sent back",
   DRAFT_SAVED: "Draft saved",
+  CERTIFICATE_GENERATED: "Blockchain certificate generated",
+  RECORD_PERSISTED: "Record persisted to LRMS",
 };
 
-export function AuditTimeline({ events }: { events: AuditEvent[] }) {
+export function AuditTimeline({
+  events,
+  variant = "compact",
+}: {
+  events: AuditEvent[];
+  variant?: "compact" | "full";
+}) {
   if (events.length === 0) {
     return <p className="text-sm text-slate-500 py-8 text-center">No audit events found.</p>;
   }
@@ -27,7 +35,7 @@ export function AuditTimeline({ events }: { events: AuditEvent[] }) {
       {events.map((event, index) => (
         <div key={event.id} className="flex gap-4">
           <div className="flex flex-col items-center">
-            <div className="h-2.5 w-2.5 rounded-full bg-slate-400 mt-2" />
+            <div className={`rounded-full bg-[var(--gov-navy)] mt-2 ${variant === "full" ? "h-3 w-3" : "h-2.5 w-2.5"}`} />
             {index < events.length - 1 && (
               <div className="w-0.5 flex-1 bg-slate-200 min-h-[40px]" />
             )}

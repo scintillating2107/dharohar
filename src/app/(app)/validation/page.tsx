@@ -16,6 +16,7 @@ import type { LandRecord, PaginatedResponse } from "@/types";
 function ValidationContent() {
   const searchParams = useSearchParams();
   const recordId = searchParams.get("recordId");
+  const duplicatesOnly = searchParams.get("duplicates") === "1";
   const router = useRouter();
   const [record, setRecord] = useState<LandRecord | null>(null);
   const [records, setRecords] = useState<LandRecord[]>([]);
@@ -68,12 +69,21 @@ function ValidationContent() {
   }
 
   const filtered = records.filter((r) => {
+    if (duplicatesOnly && !r.validation?.duplicate?.detected) return false;
     if (!filter) return true;
     return r.validation?.validation_status === filter;
   });
 
   return (
     <div className="space-y-6">
+      {duplicatesOnly && (
+        <p className="text-sm text-[var(--gov-text-muted)]">
+          Showing records with duplicate detection hits.{" "}
+          <button type="button" className="text-[var(--gov-navy-light)] font-semibold" onClick={() => router.push("/validation")}>
+            Clear filter
+          </button>
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         {["", "VALID", "REVIEW_REQUIRED", "INVALID"].map((s) => (
           <Button

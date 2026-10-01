@@ -56,8 +56,30 @@ async function callExternal<T>(
   return response.json() as Promise<T>;
 }
 
+async function callExternalGet<T>(module: string, url: string): Promise<T> {
+  const integrationKey = process.env.INTEGRATION_SERVICE_KEY || "dharohar-local-dev-key";
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "X-Integration-Key": integrationKey,
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "Unknown error");
+    throw new IntegrationError(
+      `${module} service error: ${text}`,
+      module,
+      response.status >= 500
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
+
 export function isMockMode(): boolean {
   return USE_MOCK_DATA;
 }
 
-export { callExternal };
+export { callExternal, callExternalGet };

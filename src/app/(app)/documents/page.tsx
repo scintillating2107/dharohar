@@ -13,7 +13,8 @@ import { LoadingState, ErrorState } from "@/components/ui/States";
 import { apiGet } from "@/lib/api-client";
 import { formatDateShort, formatFileSize } from "@/lib/utils";
 import type { Document, PaginatedResponse } from "@/types";
-import { Upload, Eye } from "lucide-react";
+import { Upload, Eye, FileText } from "lucide-react";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
 
 export default function DocumentsPage() {
   const [data, setData] = useState<PaginatedResponse<Document> | null>(null);
@@ -41,6 +42,17 @@ export default function DocumentsPage() {
   return (
     <AppLayout title="Documents">
       <div className="space-y-6">
+        <DashboardHero
+          eyebrow="Document repository"
+          title="Upload queue"
+          description="Active uploads and processing jobs. Browse the full digital archive under Document repository (land records)."
+          icon={FileText}
+          accent="blue"
+          actions={[
+            { href: "/documents/upload", label: "Upload", icon: Upload },
+            { href: "/records", label: "Repository", variant: "outline" as const },
+          ]}
+        />
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="flex gap-2 flex-1 max-w-md">
             <Input

@@ -81,6 +81,14 @@ export interface Document {
   recordId?: string;
   district?: string;
   state?: string;
+  tehsil?: string;
+  village?: string;
+  recordYear?: string;
+  recordType?: string;
+  sourceOffice?: string;
+  language?: string;
+  description?: string;
+  priority?: string;
 }
 
 // OCR (Member 3 contract)
@@ -196,6 +204,9 @@ export interface LandRecord {
   registration_number?: string;
   mutation_number?: string;
   mutation_date?: string;
+  record_year?: number;
+  certification_hash?: string;
+  certified_at?: string;
 }
 
 // Verification
@@ -255,7 +266,8 @@ export type AuditActionType =
   | "RECORD_REJECTED"
   | "RECORD_SENT_BACK"
   | "RECORD_PERSISTED"
-  | "DRAFT_SAVED";
+  | "DRAFT_SAVED"
+  | "CERTIFICATE_GENERATED";
 
 export interface AuditEvent {
   id: string;

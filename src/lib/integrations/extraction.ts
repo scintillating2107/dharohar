@@ -33,11 +33,8 @@ export async function extractFields(
         { document_id: documentId, ocr: ocrResult }
       );
     } catch (err) {
-      if (err instanceof IntegrationError) throw err;
-      throw new IntegrationError(
-        "Field extraction service unavailable",
-        "Field Extraction (Member 4)"
-      );
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn("Member 4 unavailable, using local extraction:", msg);
     }
   }
 

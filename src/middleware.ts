@@ -9,7 +9,16 @@ const secret = new TextEncoder().encode(JWT_SECRET);
 const COOKIE_NAME = "dharohar_session";
 const LOCAL_SERVICE_KEY = process.env.INTEGRATION_SERVICE_KEY || "dharohar-local-dev-key";
 
-const publicPaths = ["/login", "/api/auth/login"];
+const publicPaths = [
+  "/login",
+  "/register",
+  "/demo",
+  "/demo/workflow",
+  "/demo/portal",
+  "/trust/verify",
+  "/api/auth/login",
+  "/api/auth/register",
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -50,7 +59,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isPublic) {
-    if (token && pathname === "/login") {
+    if (token && (pathname === "/login" || pathname === "/register")) {
       const url = request.nextUrl.clone();
       try {
         const { payload } = await jwtVerify(token, secret);
@@ -76,9 +85,9 @@ export async function middleware(request: NextRequest) {
     const { payload } = await jwtVerify(token, secret);
     const role = payload.role as UserRole;
 
-    if (isCitizenRole(role) && pathname === "/dashboard") {
+    if (pathname === "/dashboard") {
       const url = request.nextUrl.clone();
-      url.pathname = "/citizen/dashboard";
+      url.pathname = getHomePathForRole(role);
       return NextResponse.redirect(url);
     }
     if (!isCitizenRole(role) && pathname.startsWith("/citizen")) {

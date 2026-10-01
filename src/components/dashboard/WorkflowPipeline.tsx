@@ -5,13 +5,13 @@ import { ArrowRight } from "lucide-react";
 export function WorkflowPipeline({ compact = false }: { compact?: boolean }) {
   const steps = [
     { label: "Upload", type: "done" },
-    { label: "Processing", type: "auto" },
-    { label: "OCR", type: "auto" },
-    { label: "Extraction", type: "auto" },
-    { label: "Validation", type: "auto" },
-    { label: "Verification", type: "review" },
-    { label: "Verified", type: "final" },
-    { label: "GIS", type: "final" },
+    { label: "Understand", type: "auto" },
+    { label: "Extract", type: "auto" },
+    { label: "Validate", type: "auto" },
+    { label: "Verify", type: "review" },
+    { label: "Map", type: "final" },
+    { label: "Certify", type: "final" },
+    { label: "Audit", type: "final" },
   ] as const;
 
   const stepStyles = {
@@ -56,7 +56,7 @@ export function WorkflowPipeline({ compact = false }: { compact?: boolean }) {
           ))}
         </div>
         <p className="mt-4 text-xs text-[var(--gov-text-muted)] border-t border-[var(--gov-border-light)] pt-3">
-          {PROCESSING_STEPS.length} automated processing steps · Human verification required before final storage
+          {PROCESSING_STEPS.length} steps — computer vision, multilingual OCR/NLP, validation, and human verification before LRMS/GIS storage
         </p>
       </div>
     </div>

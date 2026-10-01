@@ -1,6 +1,8 @@
 # Dharohar — Land Record Intelligence Platform
 
-AI-powered Intelligent Land Record Digitization and Validation System.
+**Intelligent Land Record Digitization and Validation System** — AI-powered extraction, validation, human verification, GIS, and dashboards aligned with LRMS / DILRMP modernization.
+
+**Evaluator mapping:** [docs/STUDY_ALIGNMENT.md](docs/STUDY_ALIGNMENT.md) · In-app **Solution scope** (`/about`).
 
 ## Overview
 
@@ -17,7 +19,8 @@ This repository contains **Member 1's integration layer** — the application sh
 - **Auth:** JWT (httpOnly cookies) with role-based access
 - **Maps:** Leaflet / react-leaflet
 - **Charts:** Recharts
-- **State:** In-memory store (prototype) — replace with Member 6 APIs
+- **State:** In-memory store (prototype) — optional **Member 6** FastAPI service at `services/member6-database`
+- **Deploy:** `cd services/member7-platform && docker compose up --build` (runs Member 6 API on port **8005**)
 
 ## Quick Start
 
@@ -27,7 +30,18 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000) (always use **port 3000**).
+
+**Page won’t load / spins forever?**
+
+1. Stop extra Node processes (only one `npm run dev` should run).
+2. Fresh dev cache: `npm run dev:fresh`
+3. First visit after a clean `.next` can take **2–5 minutes** while webpack compiles — keep the tab open until the terminal shows `GET /login 200`.
+4. For demos, prefer production mode (faster, no compile wait):
+   ```bash
+   npm run build
+   npm run start
+   ```
 
 ## Demo Accounts
 
@@ -72,8 +86,12 @@ src/
 ├── contexts/               # React contexts (auth, toast)
 ├── lib/                    # Utilities, auth, store, config
 ├── mocks/                  # Mock data for team integration
-├── services/               # Client-side API service layer
 └── types/                  # Shared TypeScript types
+
+services/
+├── member2-image/          # Image processing (Member 2)
+├── member6-database/       # FastAPI DB, GIS, audit (Member 6)
+└── member7-platform/       # Docker Compose & CI (Member 7)
 docs/
 ├── ARCHITECTURE.md
 ├── API_CONTRACTS.md

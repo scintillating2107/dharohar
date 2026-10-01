@@ -4,9 +4,7 @@ export function isCitizenRole(role: string): boolean {
   return role === "CITIZEN";
 }
 
-export function getHomePathForRole(role: string): string {
-  return isCitizenRole(role) ? "/citizen/dashboard" : "/dashboard";
-}
+export { getHomePathForRole } from "@/lib/dashboard-routes";
 
 /** Match land records registered in the citizen's name (demo: user.name vs owner_name). */
 export function recordBelongsToCitizen(record: LandRecord, user: User): boolean {

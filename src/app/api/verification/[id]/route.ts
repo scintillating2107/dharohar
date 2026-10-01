@@ -95,6 +95,8 @@ export async function POST(
         status: "VERIFIED",
         verifiedAt: now,
         verifiedBy: user?.name,
+        certification_hash: "4f8a21ce82cd9f3a7b2",
+        certified_at: now,
       });
       store.updateDocument(task.documentId, { status: "VERIFIED" });
 
@@ -150,6 +152,16 @@ export async function POST(
         actorName: user?.name || "Unknown",
         action: "RECORD_APPROVED",
         details: comment,
+      });
+      store.addAuditEvent({
+        id: generateId("AE"),
+        documentId: task.documentId,
+        recordId: task.recordId,
+        timestamp: now,
+        actor: session.userId,
+        actorName: user?.name || "Unknown",
+        action: "CERTIFICATE_GENERATED",
+        details: "Immutable certification hash anchored (demo)",
       });
       break;
 

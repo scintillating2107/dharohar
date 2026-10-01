@@ -32,6 +32,9 @@ interface MapViewProps {
   selectedParcel?: Parcel | null;
   onSelectParcel?: (parcel: Parcel) => void;
   height?: string;
+  satellite?: boolean;
+  showParcelBoundaries?: boolean;
+  showMarkers?: boolean;
 }
 
 function polygonPositions(parcel: Parcel): [number, number][] {
@@ -46,6 +49,9 @@ export function MapView({
   selectedParcel,
   onSelectParcel,
   height = "500px",
+  satellite = false,
+  showParcelBoundaries = true,
+  showMarkers = true,
 }: MapViewProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -75,15 +81,23 @@ export function MapView({
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={
+            satellite
+              ? "&copy; Esri"
+              : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          }
+          url={
+            satellite
+              ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          }
         />
         {parcels.map((parcel) => {
           const positions = polygonPositions(parcel);
           const isSelected = selectedParcel?.parcel_id === parcel.parcel_id;
           return (
             <Fragment key={parcel.parcel_id}>
-              {positions.length > 0 && (
+              {showParcelBoundaries && positions.length > 0 && (
                 <Polygon
                   pathOptions={{
                     color: parcel.status === "VERIFIED" ? "#1a7f37" : "#e8750a",
@@ -95,6 +109,7 @@ export function MapView({
                   eventHandlers={{ click: () => onSelectParcel?.(parcel) }}
                 />
               )}
+              {showMarkers && (
               <Marker
                 position={[parcel.center.lat, parcel.center.lng]}
                 eventHandlers={{ click: () => onSelectParcel?.(parcel) }}
@@ -111,6 +126,7 @@ export function MapView({
                   </div>
                 </Popup>
               </Marker>
+              )}
             </Fragment>
           );
         })}

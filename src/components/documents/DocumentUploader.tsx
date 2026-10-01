@@ -13,9 +13,12 @@ interface DocumentUploaderProps {
     signal?: AbortSignal
   ) => Promise<void>;
   loading?: boolean;
+  /** When true, selecting a file only notifies the parent (metadata step before upload). */
+  selectOnly?: boolean;
+  onFileSelected?: (file: File) => void;
 }
 
-export function DocumentUploader({ onUpload, loading }: DocumentUploaderProps) {
+export function DocumentUploader({ onUpload, loading, selectOnly, onFileSelected }: DocumentUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +46,7 @@ export function DocumentUploader({ onUpload, loading }: DocumentUploaderProps) {
     setError(null);
     setProgress(0);
     setSelectedFile(file);
+    onFileSelected?.(file);
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -144,7 +148,7 @@ export function DocumentUploader({ onUpload, loading }: DocumentUploaderProps) {
         </div>
       )}
 
-      {selectedFile && !loading && (
+      {selectedFile && !loading && !selectOnly && (
         <Button onClick={handleUpload} className="w-full">
           Upload Document
         </Button>

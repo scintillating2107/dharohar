@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { DataTable } from "@/components/ui/DataTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchFilter } from "@/components/ui/SearchFilter";
@@ -14,6 +14,7 @@ import { LoadingState } from "@/components/ui/States";
 import { apiGet } from "@/lib/api-client";
 import { formatDateShort } from "@/lib/utils";
 import type { VerificationTask, PaginatedResponse } from "@/types";
+import { CheckSquare } from "lucide-react";
 
 const DISTRICTS = ["Lucknow", "Malihabad"];
 const STATUSES = ["PENDING", "IN_REVIEW", "APPROVED", "REJECTED", "SENT_BACK"];
@@ -52,9 +53,12 @@ export default function VerificationQueuePage() {
   return (
     <AppLayout title="Verification Queue">
       <div className="space-y-6">
-        <PageHeader
-          title="Human Verification Queue"
-          description="Review extracted land record fields and approve, reject, or send back for reprocessing."
+        <DashboardHero
+          eyebrow="Human-in-the-loop"
+          title="Verification queue"
+          description="Low-confidence and validation-flagged records require officer review — study requirement for accurate digital land administration."
+          icon={CheckSquare}
+          accent="saffron"
         />
 
         <SearchFilter

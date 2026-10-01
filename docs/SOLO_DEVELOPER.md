@@ -11,7 +11,7 @@ You **can do all Member 2–6 work yourself**. Dharohar includes built-in local 
 | **Member 3** | OCR | `src/lib/services/local/ocr.ts` | `POST /api/local/member3/extract` |
 | **Member 4** | Field extraction | `src/lib/services/local/extraction.ts` | `POST /api/local/member4/extract` |
 | **Member 5** | Validation | `src/lib/services/local/validation.ts` | `POST /api/local/member5/validate` |
-| **Member 6** | Database + GIS | `src/lib/services/local/database.ts` | `POST /api/local/member6/records`, `/parcels` |
+| **Member 6** | Database + GIS | `services/member6-database/` (+ `src/lib/services/local/database.ts` fallback) | `MEMBER6_DATABASE_API_URL` or `POST /api/local/member6/records`, `/parcels` |
 
 ## How It Works (Real Processing)
 

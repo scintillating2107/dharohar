@@ -5,6 +5,7 @@ import {
   MEDIUM_CONFIDENCE_THRESHOLD,
   FIELD_LABELS,
 } from "./config";
+import { getConfidenceLevelWithSettings } from "./ai-settings";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -41,6 +42,9 @@ export function formatConfidence(confidence: number): string {
 export type ConfidenceLevel = "high" | "medium" | "low";
 
 export function getConfidenceLevel(confidence: number): ConfidenceLevel {
+  if (typeof window !== "undefined") {
+    return getConfidenceLevelWithSettings(confidence);
+  }
   if (confidence >= HIGH_CONFIDENCE_THRESHOLD) return "high";
   if (confidence >= MEDIUM_CONFIDENCE_THRESHOLD) return "medium";
   return "low";

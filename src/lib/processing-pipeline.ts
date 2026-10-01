@@ -9,6 +9,7 @@ import type {
   VerificationTask,
 } from "@/types";
 import { store, createInitialSteps, generateId } from "./store";
+import { allocateRecordId } from "./record-ids";
 import { readStoredFile } from "./file-storage";
 import { enrichParcel } from "./gis-utils";
 import {
@@ -195,7 +196,9 @@ export async function runProcessingPipeline(documentId: string): Promise<void> {
   });
   if (!validateOk || !validation) return;
 
-  const recordId = generateId("LR");
+  const docMeta = store.getDocument(documentId);
+  const recordId = allocateRecordId(store.records);
+  const recordYear = docMeta?.recordYear ? parseInt(docMeta.recordYear, 10) : new Date().getFullYear();
   const record: LandRecord = {
     record_id: recordId,
     document_id: documentId,
@@ -219,6 +222,7 @@ export async function runProcessingPipeline(documentId: string): Promise<void> {
     registration_number: extraction.fields.registration_number?.value,
     mutation_number: extraction.fields.mutation_number?.value,
     mutation_date: extraction.fields.mutation_date?.value,
+    record_year: Number.isNaN(recordYear) ? undefined : recordYear,
   };
 
   store.addRecord(record);

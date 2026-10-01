@@ -13,6 +13,15 @@ export const ROUTE_PERMISSION_MAP: Record<string, string> = {
   "/audit": "audit",
   "/users": "users",
   "/profile": "profile",
+  "/about": "profile",
+  "/ai-process": "documents",
+  "/trust": "audit",
+  "/demo": "dashboard",
+  "/demo/workflow": "dashboard",
+  "/analytics": "dashboard",
+  "/settings": "profile",
+  "/compare": "validation",
+  "/trust/verify": "audit",
 };
 
 export const API_PERMISSION_MAP: Record<string, string> = {

@@ -5,7 +5,7 @@ import {
   fetchRecordLocal,
   listParcelsLocal,
 } from "@/lib/services/local";
-import { callExternal, INTEGRATION_URLS, isMockMode } from "./client";
+import { callExternal, callExternalGet, INTEGRATION_URLS, isMockMode } from "./client";
 
 export async function persistRecord(record: LandRecord): Promise<{ success: boolean }> {
   if (isMockMode()) return { success: true };
@@ -42,10 +42,9 @@ export async function fetchRecordFromDb(recordId: string): Promise<LandRecord | 
 
   if (INTEGRATION_URLS.database) {
     try {
-      return await callExternal<LandRecord>(
+      return await callExternalGet<LandRecord>(
         "Database (Member 6)",
-        `${INTEGRATION_URLS.database}/records/${recordId}`,
-        {}
+        `${INTEGRATION_URLS.database}/records/${recordId}`
       );
     } catch {
       return null;
@@ -64,11 +63,12 @@ export async function fetchParcelsFromDb(filters?: {
       const params = new URLSearchParams();
       if (filters?.district) params.set("district", filters.district);
       if (filters?.village) params.set("village", filters.village);
-      return await callExternal<Parcel[]>(
+      const parcelRes = await callExternalGet<{ features?: unknown[] } | Parcel[]>(
         "Database (Member 6)",
-        `${INTEGRATION_URLS.database}/parcels?${params}`,
-        {}
+        `${INTEGRATION_URLS.database}/parcels?${params}`
       );
+      if (Array.isArray(parcelRes)) return parcelRes;
+      return listParcelsLocal(filters);
     } catch {
       return listParcelsLocal(filters);
     }

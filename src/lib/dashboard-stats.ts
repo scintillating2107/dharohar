@@ -146,6 +146,17 @@ export function computeVerificationChart() {
   ];
 }
 
+export function computeErrorCategories() {
+  return [
+    { name: "OCR uncertainty", count: 48 },
+    { name: "Missing fields", count: 36 },
+    { name: "Area mismatch", count: 22 },
+    { name: "Duplicate record", count: 14 },
+    { name: "Location mismatch", count: 12 },
+    { name: "Other", count: 10 },
+  ];
+}
+
 export function computeValidationChart() {
   const counts = { Valid: 0, "Review Required": 0, Invalid: 0 };
 

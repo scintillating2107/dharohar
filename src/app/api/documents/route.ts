@@ -55,6 +55,15 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File | null;
     const district = (formData.get("district") as string | null)?.trim() || undefined;
     const state = (formData.get("state") as string | null)?.trim() || "Uttar Pradesh";
+    const nameOverride = (formData.get("name") as string | null)?.trim();
+    const tehsil = (formData.get("tehsil") as string | null)?.trim() || undefined;
+    const village = (formData.get("village") as string | null)?.trim() || undefined;
+    const recordYear = (formData.get("recordYear") as string | null)?.trim() || undefined;
+    const recordType = (formData.get("recordType") as string | null)?.trim() || undefined;
+    const sourceOffice = (formData.get("sourceOffice") as string | null)?.trim() || undefined;
+    const language = (formData.get("language") as string | null)?.trim() || undefined;
+    const description = (formData.get("description") as string | null)?.trim() || undefined;
+    const priority = (formData.get("priority") as string | null)?.trim() || undefined;
 
     if (!file) return apiError("No file provided");
 
@@ -73,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     const doc: Document = {
       id: docId,
-      name: file.name,
+      name: nameOverride || file.name,
       fileType: file.type,
       fileSize: file.size,
       pageCount,
@@ -92,6 +101,14 @@ export async function POST(request: NextRequest) {
       })),
       district: district || user?.district,
       state,
+      tehsil,
+      village,
+      recordYear,
+      recordType,
+      sourceOffice,
+      language,
+      description,
+      priority,
     };
 
     store.addDocument(doc);

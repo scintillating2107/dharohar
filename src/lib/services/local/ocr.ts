@@ -48,7 +48,31 @@ export async function runGeminiOCRFromDocument(
 }
 
 export async function runOCRLocal(documentId: string): Promise<OCRResult> {
-  return runGeminiOCRFromDocument(documentId);
+  if (getGeminiApiKey()) {
+    return runGeminiOCRFromDocument(documentId);
+  }
+
+  const { recognizeImageBuffer } = await import("@/lib/ocr-engine");
+  const total = await ensurePageImages(documentId);
+  const pages: OCRResult["pages"] = [];
+
+  for (let pageNum = 1; pageNum <= total; pageNum++) {
+    const buffer = await readPageImageBuffer(documentId, pageNum);
+    if (!buffer) throw new Error(`Page ${pageNum} image missing for document ${documentId}`);
+    const ocr = await recognizeImageBuffer(buffer);
+    pages.push({
+      page: pageNum,
+      text: ocr.text,
+      language: ocr.language,
+      regions: ocr.words.map((w) => ({
+        text: w.text,
+        confidence: w.confidence,
+        bbox: w.bbox,
+      })),
+    });
+  }
+
+  return { document_id: documentId, pages };
 }
 
 export async function runGeminiOCR(

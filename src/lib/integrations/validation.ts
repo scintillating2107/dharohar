@@ -20,11 +20,8 @@ export async function validateRecord(
         { document_id: documentId, fields: extraction?.fields }
       );
     } catch (err) {
-      if (err instanceof IntegrationError) throw err;
-      throw new IntegrationError(
-        "Validation service unavailable",
-        "Validation (Member 5)"
-      );
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn("Member 5 unavailable, using local validation:", msg);
     }
   }
 

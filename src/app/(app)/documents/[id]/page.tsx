@@ -14,7 +14,7 @@ import { apiGet, apiPost } from "@/lib/api-client";
 import { formatDate, formatFileSize } from "@/lib/utils";
 import { useToast } from "@/contexts/ToastContext";
 import type { Document, LandRecord } from "@/types";
-import { Play, ExternalLink, RotateCcw } from "lucide-react";
+import { ExternalLink, RotateCcw } from "lucide-react";
 
 export default function DocumentDetailPage() {
   const params = useParams();
@@ -40,6 +40,15 @@ export default function DocumentDetailPage() {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
+    if (document?.status === "UPLOADED") {
+      router.replace(`/documents/${id}/quality`);
+    }
+  }, [document?.status, id, router]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       if (document && !["VERIFIED", "REJECTED", "FAILED", "UPLOADED"].includes(document.status)) {
         load();
@@ -47,19 +56,6 @@ export default function DocumentDetailPage() {
     }, 3000);
     return () => clearInterval(interval);
   }, [load, document?.status]);
-
-  const startProcessing = async () => {
-    setProcessing(true);
-    try {
-      await apiPost(`/api/documents/${id}/process`);
-      toast("Processing started", "success");
-      load();
-    } catch {
-      toast("Failed to start processing", "error");
-    } finally {
-      setProcessing(false);
-    }
-  };
 
   const retryProcessing = async () => {
     setProcessing(true);
@@ -101,11 +97,16 @@ export default function DocumentDetailPage() {
           </dl>
         </Card>
 
-        {document.status === "UPLOADED" && (
-          <Button onClick={startProcessing} loading={processing}>
-            <Play className="h-4 w-4" /> Start Processing
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/documents/${id}/quality`}>
+            <Button variant="outline" size="sm">Preview & quality</Button>
+          </Link>
+          {record?.ocr && (
+            <Link href={`/documents/${id}/ocr`}>
+              <Button variant="outline" size="sm">OCR results</Button>
+            </Link>
+          )}
+        </div>
 
         {document.status === "FAILED" && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-4">

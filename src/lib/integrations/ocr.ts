@@ -29,25 +29,21 @@ export async function runOCR(
         }
       );
     } catch (err) {
-      if (err instanceof IntegrationError) throw err;
-      throw new IntegrationError("OCR service unavailable", "OCR (Member 3)");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn("Member 3 OCR unavailable, using local OCR:", msg);
     }
   }
 
-  if (!getGeminiApiKey()) {
-    throw new IntegrationError(
-      "GEMINI_API_KEY is missing — set it in .env.local for Member 3 OCR",
-      "OCR (Member 3)",
-      false
-    );
+  if (getGeminiApiKey()) {
+    try {
+      return await runGeminiOCRFromDocument(documentId, processedImageUrls);
+    } catch (err) {
+      console.warn("Gemini OCR failed, using local OCR:", err);
+    }
   }
 
-  try {
-    return await runGeminiOCRFromDocument(documentId, processedImageUrls);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "OCR failed";
-    throw new IntegrationError(message, "OCR (Member 3)");
-  }
+  const { runOCRLocal } = await import("@/lib/services/local/ocr");
+  return runOCRLocal(documentId);
 }
 
 function delay(ms: number) {

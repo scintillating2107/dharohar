@@ -29,13 +29,13 @@
   --color-gov-navy-light: var(--gov-navy-light);
   --color-gov-saffron: var(--gov-saffron);
   --color-gov-green: var(--gov-green);
-  --font-sans: var(--font-source);
+  --font-sans: "Segoe UI", system-ui, sans-serif;
 }
 
 body {
   background: var(--gov-bg);
   color: var(--gov-text);
-  font-family: var(--font-source), "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.6;
 }
@@ -120,3 +120,85 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #78909c;
 }
+
+/* Dashboard surfaces */
+.dashboard-hero {
+  background: linear-gradient(135deg, #ffffff 0%, #f7f9fc 55%, #f0f5fa 100%);
+}
+
+.dashboard-hero-icon {
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 0.75rem;
+  background: var(--gov-navy);
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(12, 35, 64, 0.18);
+}
+
+.dashboard-portal-card {
+  display: block;
+  padding: 1rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid var(--gov-border-light);
+  background: var(--gov-surface);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.dashboard-portal-card:hover {
+  border-color: var(--gov-navy-light);
+  box-shadow: 0 4px 12px rgba(12, 35, 64, 0.08);
+  transform: translateY(-1px);
+}
+
+.login-portal-tile {
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.875rem 1rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.login-portal-tile:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* Problem statement table (SIH / ministry portal style) */
+.gov-ps-table {
+  border-collapse: collapse;
+}
+
+.gov-ps-table th,
+.gov-ps-table td {
+  border: 1px solid var(--gov-border-light);
+  padding: 0.75rem 1rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+.gov-ps-table th[scope="row"],
+.gov-ps-table thead th:first-child {
+  width: 28%;
+  max-width: 220px;
+  background: #e8edf4;
+  font-weight: 600;
+  color: var(--gov-navy);
+  font-size: 0.8125rem;
+}
+
+.gov-ps-table thead th {
+  background: var(--gov-navy);
+  color: white;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gov-ps-table tbody td {
+  background: white;
+  color: var(--gov-text);
+}
+

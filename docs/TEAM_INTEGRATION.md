@@ -81,9 +81,11 @@ How each team member connects their module to Dharohar (Member 1).
 
 ## Member 6 — Database + GIS
 
+**Service code:** `services/member6-database/` (FastAPI — `uvicorn app.main:app --port 8005`)
+
 **Integration file:** `src/lib/integrations/database.ts`
 
-**Env variable:** `MEMBER6_DATABASE_API_URL=http://your-service:8005`
+**Env variable:** `MEMBER6_DATABASE_API_URL=http://localhost:8005`
 
 **Endpoints needed:**
 - `POST /records` — persist verified record
@@ -92,6 +94,14 @@ How each team member connects their module to Dharohar (Member 1).
 - `GET /parcels` — list parcels for GIS map
 
 When ready, replace `src/lib/store.ts` calls with API calls to your service.
+
+---
+
+## Member 7 — Platform / deployment
+
+**Service code:** `services/member7-platform/` (Docker Compose, CI, Celery worker image)
+
+Use this for PostgreSQL + Redis + containerized API in production. The FastAPI database service implementation is in `services/member6-database` until the Compose `backend/` package is merged.
 
 ---
 

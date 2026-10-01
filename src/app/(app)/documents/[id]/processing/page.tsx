@@ -4,30 +4,26 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card } from "@/components/ui/Card";
-import { ProcessingTimeline } from "@/components/processing/ProcessingTimeline";
+import { AIProcessingCenter } from "@/components/processing/AIProcessingCenter";
+import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { ProcessingStatusBadge } from "@/components/ui/StatusBadges";
 import { LoadingState, ErrorState } from "@/components/ui/States";
 import { apiGet } from "@/lib/api-client";
-import type { Document, ProcessingStep } from "@/types";
+import type { Document } from "@/types";
 
 export default function ProcessingPage() {
   const params = useParams();
   const id = params.id as string;
-  const [steps, setSteps] = useState<ProcessingStep[]>([]);
-  const [status, setStatus] = useState<string>("");
+  const [document, setDocument] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const data = await apiGet<{ steps: ProcessingStep[]; status: string }>(
-        `/api/documents/${id}/process`
-      );
-      setSteps(data.steps);
-      setStatus(data.status);
-    } catch {
       const doc = await apiGet<{ document: Document }>(`/api/documents/${id}`);
-      setSteps(doc.document.steps);
-      setStatus(doc.document.status);
+      setDocument(doc.document);
+    } catch {
+      setDocument(null);
     } finally {
       setLoading(false);
     }
@@ -41,22 +37,37 @@ export default function ProcessingPage() {
 
   if (loading) return <AppLayout title="Processing"><LoadingState /></AppLayout>;
 
+  if (!document) {
+    return <AppLayout title="AI processing"><ErrorState message="Document not found" onRetry={load} /></AppLayout>;
+  }
+
+  const showOcr = document.status !== "UPLOADED" && document.status !== "PROCESSING";
+
   return (
-    <AppLayout title="Document Processing">
-      <div className="max-w-2xl space-y-6">
-        <div className="flex items-center gap-4">
-          <h3 className="text-lg font-semibold">Processing Status</h3>
-          <ProcessingStatusBadge status={status as Document["status"]} />
+    <AppLayout title="AI processing center">
+      <div className="max-w-3xl space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <h3 className="text-lg font-semibold text-[var(--gov-navy)]">{document.name}</h3>
+            <ProcessingStatusBadge status={document.status} />
+          </div>
+          <div className="flex gap-2">
+            {showOcr && (
+              <Link href={`/documents/${id}/ocr`}>
+                <Button variant="outline" size="sm">OCR results</Button>
+              </Link>
+            )}
+            {document.recordId && (
+              <Link href={`/records/${document.recordId}`}>
+                <Button size="sm">Extracted record</Button>
+              </Link>
+            )}
+          </div>
         </div>
 
-        <Card title="Processing Timeline">
-          <ProcessingTimeline steps={steps} />
+        <Card>
+          <AIProcessingCenter document={document} />
         </Card>
-
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          <p className="font-medium text-slate-800 mb-2">Pipeline Stages</p>
-          <p>Upload → PDF Processing → Image Enhancement → Language Detection → OCR → Field Extraction → Validation → Human Verification → Final Storage</p>
-        </div>
       </div>
     </AppLayout>
   );

@@ -1,6 +1,6 @@
 export const APP_NAME = "Dharohar";
 export const APP_DESCRIPTION =
-  "AI-powered Land Record Intelligence and Verification Platform";
+  "Land record digitization, validation, and verification services for revenue and survey offices.";
 
 export const HIGH_CONFIDENCE_THRESHOLD = 0.9;
 export const MEDIUM_CONFIDENCE_THRESHOLD = 0.75;
@@ -96,8 +96,8 @@ export const ROLE_PERMISSIONS: Record<
     "audit",
     "profile",
   ],
-  DATA_OFFICER: ["dashboard", "documents", "records", "profile"],
-  SURVEY_OFFICER: ["dashboard", "records", "gis", "profile"],
+  DATA_OFFICER: ["dashboard", "documents", "records", "validation", "audit", "profile"],
+  SURVEY_OFFICER: ["dashboard", "records", "gis", "audit", "profile"],
   CITIZEN: ["citizen", "records", "gis", "profile"],
 };
 

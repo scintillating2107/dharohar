@@ -20,6 +20,7 @@ import {
   ArrowRight,
   Shield,
 } from "lucide-react";
+import { DashboardHero, DashboardSection } from "@/components/dashboard/DashboardHero";
 
 interface CitizenDashboardData {
   user: { name: string; district: string; email: string };
@@ -114,37 +115,18 @@ export default function CitizenDashboardPage() {
 
   return (
     <AppLayout title="Citizen Portal">
-      <div className="space-y-7">
-        <div className="gov-card border-l-4 border-l-[var(--gov-saffron)] p-5 sm:p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--gov-text-muted)]">
-                Citizen services
-              </p>
-              <h2 className="text-xl font-bold text-[var(--gov-navy)] mt-1">
-                Welcome, {user.name}
-              </h2>
-              <p className="text-sm text-[var(--gov-text-muted)] mt-1 flex items-center gap-1.5">
-                <MapPin className="h-4 w-4" />
-                {user.district} district — view verified records and track your land holdings
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link href="/records?status=VERIFIED">
-                <Button size="sm">
-                  <FileSearch className="h-4 w-4" />
-                  Search records
-                </Button>
-              </Link>
-              <Link href="/gis">
-                <Button variant="outline" size="sm">
-                  <MapPin className="h-4 w-4" />
-                  GIS map
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
+      <div className="space-y-8">
+        <DashboardHero
+          eyebrow="Citizen services"
+          title={`Welcome, ${user.name}`}
+          description={`${user.district} district — view verified records, track your land holdings, and access public services.`}
+          icon={Home}
+          accent="saffron"
+          actions={[
+            { href: "/records?status=VERIFIED", label: "Search records", icon: FileSearch },
+            { href: "/gis", label: "GIS map", icon: MapPin, variant: "outline" },
+          ]}
+        />
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -173,6 +155,7 @@ export default function CitizenDashboardPage() {
           />
         </div>
 
+        <DashboardSection title="Your services & records">
         <div className="grid lg:grid-cols-3 gap-6">
           <Card title="Quick services" className="lg:col-span-1">
             <ul className="space-y-3">
@@ -225,6 +208,7 @@ export default function CitizenDashboardPage() {
             )}
           </Card>
         </div>
+        </DashboardSection>
 
         <Card title={`Recently verified in ${user.district}`}>
           {data.publicVerified.length === 0 ? (

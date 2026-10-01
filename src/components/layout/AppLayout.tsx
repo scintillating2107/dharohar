@@ -2,7 +2,8 @@
 
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
-import { GovHeader, GovFooter } from "./GovBranding";
+import { AppShellTopbar } from "./AppShellTopbar";
+import { GovFooter } from "./GovBranding";
 
 export function AppLayout({
   children,
@@ -13,7 +14,7 @@ export function AppLayout({
 }) {
   return (
     <div className="flex flex-col min-h-screen">
-      <GovHeader compact />
+      <AppShellTopbar />
       <div className="flex flex-1 min-h-0">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0 bg-[var(--gov-bg)]">

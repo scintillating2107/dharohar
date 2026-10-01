@@ -13,6 +13,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { apiGet, apiPost } from "@/lib/api-client";
 import { formatRole, formatDateShort } from "@/lib/utils";
 import type { User, UserRole } from "@/types";
+import { RolePermissionsMatrix } from "@/components/users/RolePermissionsMatrix";
 
 const ROLES: UserRole[] = [
   "ADMIN",
@@ -90,6 +91,13 @@ export default function UsersPage() {
             <Button className="mt-4" loading={creating} onClick={createUser}>Create User</Button>
           </Card>
         )}
+
+        <Card title="Roles & permissions">
+          <p className="text-xs text-[var(--gov-text-muted)] mb-4">
+            Administrator, verification, data, survey, and citizen roles as configured for this deployment.
+          </p>
+          <RolePermissionsMatrix />
+        </Card>
 
         <Card title="All Users">
           {loading ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ZoomIn, ZoomOut, Maximize, ChevronLeft, ChevronRight } from "lucide-react";
 import type { DocumentPage, OCRRegion } from "@/types";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +12,7 @@ interface DocumentViewerProps {
   highlightedField?: string;
   onFieldHighlight?: (fieldKey: string) => void;
   fileType?: string;
+  pageIndex?: number;
 }
 
 export function DocumentViewer({
@@ -19,10 +20,17 @@ export function DocumentViewer({
   regions = [],
   highlightedField,
   fileType,
+  pageIndex,
 }: DocumentViewerProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [zoom, setZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (pageIndex !== undefined && pageIndex >= 0 && pageIndex < pages.length) {
+      setCurrentPage(pageIndex);
+    }
+  }, [pageIndex, pages.length]);
 
   const page = pages[currentPage];
   const imageUrl = page?.processedImageUrl || page?.imageUrl;
