@@ -13,7 +13,7 @@ import { getHomePathForRole } from "@/lib/dashboard-routes";
 import { LoadingState } from "@/components/ui/States";
 import { GovHeader, GovEmblem, GovTricolor, GovFooter } from "@/components/layout/GovBranding";
 import { formatRole } from "@/lib/utils";
-import { Lock, Upload, MapPin, Shield, BadgeCheck } from "lucide-react";
+import { Lock, Upload, MapPin, Shield, BadgeCheck, PlayCircle } from "lucide-react";
 
 const FEATURES = [
   { icon: Upload, text: "Upload scanned registers and PDFs" },
@@ -122,6 +122,12 @@ function LoginForm() {
                   {t("New citizen user?")}{" "}
                   <Link href="/register" className="font-semibold text-[var(--gov-navy)] hover:underline">{t("Citizen registration")}</Link>
                 </p>
+                <Link
+                  href="/walkthrough"
+                  className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--gov-navy-light)] bg-blue-50/50 px-3 py-2 text-sm font-semibold text-[var(--gov-navy)] hover:bg-blue-50"
+                >
+                  <PlayCircle className="h-4 w-4" /> {t("View the workflow demo — no sign-in needed")}
+                </Link>
                 <p className="text-center text-xs text-[var(--gov-text-light)] mt-3 flex items-center justify-center gap-1">
                   <Lock className="h-3.5 w-3.5 shrink-0" /> {t("Accounts lock for 15 minutes after 5 failed attempts")}
                 </p>

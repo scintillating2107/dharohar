@@ -17,6 +17,7 @@ const PUBLIC_PREFIXES = [
   "/login",
   "/register",
   "/verify",
+  "/walkthrough",
   "/api/auth/login",
   "/api/auth/register",
   "/api/public",

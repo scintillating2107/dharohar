@@ -20,6 +20,7 @@ import { cn, formatDate, getFieldLabel } from "@/lib/utils";
 import type { AuditEvent, SystemSettings } from "@/types";
 import { ArrowRight, CheckCircle2, ExternalLink, Link2, MapPinned, ShieldAlert, ShieldCheck, Upload, UserCheck } from "lucide-react";
 import { Fact } from "./PanelsPipeline";
+import { useSnapshot } from "./snapshot";
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
@@ -119,6 +120,7 @@ export function VerificationPanel({ detail }: { detail: RecordDetail }) {
   const events = detail.auditEvents.filter((e) => VERIFY_ACTIONS.has(e.action));
   const corrected = detail.corrections.filter((c) => !c.accepted);
   const pending = record.status === "VERIFICATION_REQUIRED";
+  const snapshot = useSnapshot();
 
   return (
     <div className="grid xl:grid-cols-2 gap-4">
@@ -128,7 +130,7 @@ export function VerificationPanel({ detail }: { detail: RecordDetail }) {
             <p className="text-sm text-[var(--gov-text-muted)] mb-3">
               {t("This record is in the verification queue. Open the workspace to check the flagged fields against the scan and approve it — then come back to see the certificate and ledger.")}
             </p>
-            {user && hasPermission(user.role, "verification") && (
+            {!snapshot && user && hasPermission(user.role, "verification") && (
               <Link href={`/verification/${record.record_id}`}>
                 <Button>
                   <UserCheck className="h-4 w-4" /> {t("Open verification workspace")}
@@ -191,6 +193,7 @@ export function GisPanel({ detail, settings, onChanged }: { detail: RecordDetail
   const surveyed = parcel?.geometry_source === "surveyed";
   const diff = surveyed && parcel?.polygon_area_ha && recordedHa ? ((parcel.polygon_area_ha - recordedHa) / recordedHa) * 100 : null;
   const tolerance = settings?.areaTolerancePct ?? 5;
+  const snapshot = useSnapshot();
 
   const uploadSample = async () => {
     setBusy(true);
@@ -240,16 +243,18 @@ export function GisPanel({ detail, settings, onChanged }: { detail: RecordDetail
           </p>
         )}
         {parcel?.location_note && <p className="text-xs text-[var(--gov-text-muted)]">{tx(parcel.location_note)}</p>}
-        {!surveyed && user && hasPermission(user.role, "gis_edit") && (
+        {!snapshot && !surveyed && user && hasPermission(user.role, "gis_edit") && (
           <Button onClick={uploadSample} loading={busy} className="w-full">
             <Upload className="h-4 w-4" /> {t("Upload sample survey boundary")}
           </Button>
         )}
-        <Link href={`/gis?record=${record.record_id}`} className="block">
-          <Button variant="outline" className="w-full">
-            <MapPinned className="h-4 w-4" /> {t("Open in map")}
-          </Button>
-        </Link>
+        {!snapshot && (
+          <Link href={`/gis?record=${record.record_id}`} className="block">
+            <Button variant="outline" className="w-full">
+              <MapPinned className="h-4 w-4" /> {t("Open in map")}
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -288,8 +293,10 @@ function Block({ event, anchor }: { event: AuditEvent; anchor: boolean }) {
 export function LedgerPanel({ detail }: { detail: RecordDetail }) {
   const { t } = useLocale();
   const { record } = detail;
+  const snapshot = useSnapshot();
   const [run, setRun] = useState(0);
-  const chain = useApi<{ valid: boolean; checked: number; brokenAtSeq?: number; head: string | null }>(run ? `/api/audit/verify?demo=${run}` : null);
+  const live = useApi<{ valid: boolean; checked: number; brokenAtSeq?: number; head: string | null }>(run && !snapshot ? `/api/audit/verify?demo=${run}` : null);
+  const chain = snapshot ? { data: run ? snapshot.chain : undefined, loading: false } : live;
   const blocks = useMemo(() => [...detail.auditEvents].filter((e) => e.hash).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)), [detail.auditEvents]);
   // Start at the newest blocks, where the certificate is anchored
   const chainRef = useRef<HTMLDivElement>(null);
@@ -379,13 +386,18 @@ export function LedgerPanel({ detail }: { detail: RecordDetail }) {
         </Card>
         <div>
           {record.certificate ? (
-            <CertificatePanel recordId={record.record_id} />
+            <CertificatePanel
+              recordId={record.record_id}
+              data={snapshot?.certificate ?? undefined}
+              qrSrc={snapshot?.qr ?? undefined}
+              publicLinks={!snapshot}
+            />
           ) : (
             <Card title="Digital certificate">
               <p className="text-sm text-[var(--gov-text-muted)]">{t("The certificate is issued when an officer approves the record. Approve it in the verification step, then return here.")}</p>
             </Card>
           )}
-          {record.certificate && (
+          {record.certificate && !snapshot && (
             <a href={`/verify/${record.record_id}`} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[var(--gov-navy-light)]">
               <ExternalLink className="h-4 w-4" /> {t("Open the public verification page (what the QR code opens)")}
               <ArrowRight className="h-3.5 w-3.5" />

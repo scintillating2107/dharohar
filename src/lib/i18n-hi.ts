@@ -386,6 +386,12 @@ const UI: Record<string, string> = {
   "Handwriting OCR is unavailable": "हस्तलिखित OCR उपलब्ध नहीं",
   "Tesseract is used instead": "इसके स्थान पर Tesseract उपयोग हो रहा है",
   "Training accounts are enabled in production": "प्रोडक्शन में प्रशिक्षण खाते सक्षम हैं",
+  "Database is temporary on this deployment": "इस परिनियोजन पर डेटाबेस अस्थायी है",
+  "Set DATABASE_URL to a hosted PostgreSQL — each server instance has its own copy, so data and sign-ins are lost":
+    "DATABASE_URL को होस्टेड PostgreSQL पर सेट करें — हर सर्वर इंस्टेंस की अपनी प्रति है, इसलिए डेटा और साइन-इन खो जाते हैं",
+  "Uploaded files are stored temporarily": "अपलोड की गई फ़ाइलें अस्थायी रूप से संग्रहीत हैं",
+  "Set STORAGE_DRIVER=s3 with an S3-compatible bucket so scans survive restarts": "स्कैन सुरक्षित रखने हेतु S3-संगत बकेट के साथ STORAGE_DRIVER=s3 सेट करें",
+  "Your session has ended. Opening sign-in…": "आपका सत्र समाप्त हो गया है। साइन-इन खुल रहा है…",
   "Set SEED_DEMO_USERS=false and deactivate demo users": "SEED_DEMO_USERS=false सेट करें और डेमो उपयोगकर्ताओं को निष्क्रिय करें",
   "Check documents that failed processing": "विफल प्रोसेसिंग वाले दस्तावेज़ जाँचें",
   "Review quality and start processing": "गुणवत्ता जाँचें और प्रोसेसिंग शुरू करें",
@@ -1338,6 +1344,10 @@ const UI: Record<string, string> = {
 
   // ── Workflow demo ────────────────────────────────────────────────────────
   "Workflow demo": "कार्यप्रवाह डेमो",
+  "Sign in to run it live": "लाइव चलाने हेतु साइन इन करें",
+  "View the workflow demo — no sign-in needed": "कार्यप्रवाह डेमो देखें — साइन-इन आवश्यक नहीं",
+  "Recorded from a real run of the system on {date}. Every value shown is the system’s own output for this scan.":
+    "{date} को सिस्टम के वास्तविक रन से रिकॉर्ड किया गया। दिखाया गया हर मान इस स्कैन के लिए सिस्टम का अपना परिणाम है।",
   "A guided tour of the digitization pipeline on a real document — every screen shows live data from the system.":
     "एक वास्तविक दस्तावेज़ पर डिजिटलीकरण प्रक्रिया का निर्देशित भ्रमण — हर स्क्रीन सिस्टम का लाइव डेटा दिखाती है।",
   "Run live with sample": "नमूने के साथ लाइव चलाएँ",

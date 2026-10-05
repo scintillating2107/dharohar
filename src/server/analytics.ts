@@ -251,6 +251,24 @@ export async function attentionFor(user: { id: string; role: import("@/types").U
     if (env.geminiApiKey && !/^AIza[\w-]{30,}$/.test(env.geminiApiKey)) {
       items.push({ id: "cfg-gemini", title: "Gemini API key is invalid", detail: "Handwriting OCR is unavailable; Tesseract is used instead", href: "/integrations", severity: "medium" });
     }
+    if (env.isServerless && !env.databaseUrl) {
+      items.push({
+        id: "cfg-db",
+        title: "Database is temporary on this deployment",
+        detail: "Set DATABASE_URL to a hosted PostgreSQL — each server instance has its own copy, so data and sign-ins are lost",
+        href: "/integrations",
+        severity: "high",
+      });
+    }
+    if (env.isServerless && env.storageDriver !== "s3") {
+      items.push({
+        id: "cfg-storage",
+        title: "Uploaded files are stored temporarily",
+        detail: "Set STORAGE_DRIVER=s3 with an S3-compatible bucket so scans survive restarts",
+        href: "/integrations",
+        severity: "high",
+      });
+    }
     if (env.isProd && env.seedDemoUsers) {
       items.push({ id: "cfg-demo", title: "Training accounts are enabled in production", detail: "Set SEED_DEMO_USERS=false and deactivate demo users", href: "/users", severity: "high" });
     }

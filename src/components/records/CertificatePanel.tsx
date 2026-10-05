@@ -20,9 +20,22 @@ export interface CertificateCheckResult {
 }
 
 /** Live re-verification of a record's signed certificate. */
-export function CertificatePanel({ recordId }: { recordId: string }) {
+export function CertificatePanel({
+  recordId,
+  data: preset,
+  qrSrc,
+  publicLinks = true,
+}: {
+  recordId: string;
+  /** Result recorded earlier (e.g. a demo snapshot) instead of a live re-verification */
+  data?: CertificateCheckResult;
+  qrSrc?: string;
+  publicLinks?: boolean;
+}) {
   const { t, tx } = useLocale();
-  const { data, initialLoading, error } = useApi<CertificateCheckResult>(`/api/records/${recordId}/certificate`);
+  const live = useApi<CertificateCheckResult>(preset ? null : `/api/records/${recordId}/certificate`);
+  const data = preset ?? live.data;
+  const { initialLoading, error } = preset ? { initialLoading: false, error: null } : live;
   if (initialLoading) return <LoadingState message="Verifying certificate…" />;
   if (!data) return <p className="text-sm text-red-700">{tx(error || "Could not verify certificate")}</p>;
   const cert = data.certificate;
@@ -66,8 +79,9 @@ export function CertificatePanel({ recordId }: { recordId: string }) {
       {cert && (
         <Card title="Public verification">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/api/public/qr/${recordId}`} alt={t("QR code to verify {id}", { id: recordId })} className="w-full max-w-[220px] mx-auto" />
+          <img src={qrSrc ?? `/api/public/qr/${recordId}`} alt={t("QR code to verify {id}", { id: recordId })} className="w-full max-w-[220px] mx-auto" />
           <p className="text-xs text-[var(--gov-text-muted)] text-center mt-2">{t("Scan to verify this record without signing in.")}</p>
+          {publicLinks && (
           <div className="flex flex-col gap-2 mt-4">
             <Link href={`/verify/${recordId}`} target="_blank">
               <Button variant="outline" size="sm" className="w-full"><ExternalLink className="h-4 w-4" /> {t("Open public page")}</Button>
@@ -76,6 +90,7 @@ export function CertificatePanel({ recordId }: { recordId: string }) {
               <Button size="sm" className="w-full"><Printer className="h-4 w-4" /> {t("Print certificate")}</Button>
             </Link>
           </div>
+          )}
         </Card>
       )}
     </div>

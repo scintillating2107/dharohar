@@ -1,12 +1,18 @@
 import { eq } from "drizzle-orm";
-import { requireUser } from "@/server/auth";
+import { clearSessionCookie, getSessionUser, requireUser } from "@/server/auth";
 import { getDb } from "@/server/db/client";
 import { users } from "@/server/db/schema";
 import { getUserRow, toUser } from "@/server/repo";
 import { fail, handle, ok } from "@/server/http";
 
 export const GET = handle(async () => {
-  const user = await requireUser();
+  const user = await getSessionUser();
+  if (!user) {
+    // A signed cookie whose user no longer exists or is deactivated: drop it, so the page
+    // middleware stops treating the browser as signed in and the login page can load.
+    await clearSessionCookie();
+    return fail("Unauthorized", 401);
+  }
   return ok({ user });
 });
 
