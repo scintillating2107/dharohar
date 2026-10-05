@@ -10,8 +10,7 @@ import type { RecordDetail } from "@/components/records/Record360";
 import { useLocale } from "@/contexts/LocaleContext";
 import { formatDate, cn } from "@/lib/utils";
 import { History, LogIn, Maximize2, Minimize2 } from "lucide-react";
-import { SHOWCASE_STEPS } from "./content";
-import { StepFooter, StepNarration, StepPanel, StepRail, useStepKeys } from "./ShowcaseStage";
+import { INTRO, StepFooter, StepHeader, StepNotes, StepPanel, StepRail, TourIntro, parseStep, useStepKeys, useTour } from "./ShowcaseStage";
 import { SnapshotContext, type ShowcaseSnapshot } from "./snapshot";
 import snapshotJson from "./snapshot.json";
 
@@ -27,11 +26,16 @@ export function WalkthroughView() {
   const params = useSearchParams();
   const rootRef = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
-  const step = Math.min(SHOWCASE_STEPS.length - 1, Math.max(0, Number(params.get("step") ?? 1) - 1));
+  const step = parseStep(params.get("step"));
   const detail = snapshot.detail as RecordDetail;
 
   const goStep = useCallback((n: number) => router.replace(`/walkthrough?step=${n + 1}`, { scroll: false }), [router]);
   useStepKeys(step, goStep);
+  const tour = useTour(step, goStep);
+  const play = () => {
+    if (step === INTRO) goStep(0);
+    tour.setPlaying(true);
+  };
 
   useEffect(() => {
     const onChange = () => setFullscreen(Boolean(window.document.fullscreenElement));
@@ -74,14 +78,19 @@ export function WalkthroughView() {
             </span>
           </div>
 
-          <StepRail step={step} onStep={goStep} />
+          <StepRail step={step} onStep={goStep} playing={tour.playing} onTogglePlay={() => (tour.playing ? tour.setPlaying(false) : play())} seconds={tour.seconds} />
 
-          <div className="grid min-[1700px]:grid-cols-[320px_minmax(0,1fr)] gap-5 items-start">
-            <StepNarration step={step} document={detail.document} />
-            <section aria-live="polite" className="min-w-0">
-              <StepPanel step={step} detail={detail} settings={snapshot.settings} />
-            </section>
-          </div>
+          {step === INTRO ? (
+            <TourIntro detail={detail} settings={snapshot.settings} qrSrc={snapshot.qr} onStep={goStep} onPlay={play} />
+          ) : (
+            <>
+              <StepHeader step={step} detail={detail} settings={snapshot.settings} chainChecked={snapshot.chain.checked} />
+              <section aria-live="polite" className="min-w-0">
+                <StepPanel step={step} detail={detail} settings={snapshot.settings} />
+              </section>
+              <StepNotes step={step} />
+            </>
+          )}
 
           <StepFooter step={step} onStep={goStep} />
         </main>

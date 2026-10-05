@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FieldSourceBadge } from "@/components/ui/StatusBadges";
@@ -152,6 +152,19 @@ export function SchemaPanel({ detail }: { detail: RecordDetail }) {
     [record.fields, t]
   );
   const focusPage = focus ? record.fields[focus]?.location?.page : undefined;
+  const userFocused = useRef(false);
+  useEffect(() => {
+    const located = keys.filter((k) => record.fields[k]?.location);
+    if (!located.length) return;
+    let i = 0;
+    const timer = setInterval(() => {
+      if (userFocused.current) return;
+      setFocus(located[i % located.length]);
+      i += 1;
+    }, 1600);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record.fields]);
 
   const payload = useMemo(
     () => ({
@@ -212,10 +225,16 @@ export function SchemaPanel({ detail }: { detail: RecordDetail }) {
                   return (
                     <tr
                       key={key}
-                      onMouseEnter={() => f?.location && setFocus(key)}
-                      onFocus={() => f?.location && setFocus(key)}
+                      onMouseEnter={() => {
+                        userFocused.current = true;
+                        if (f?.location) setFocus(key);
+                      }}
+                      onFocus={() => {
+                        userFocused.current = true;
+                        if (f?.location) setFocus(key);
+                      }}
                       tabIndex={f?.location ? 0 : undefined}
-                      className={cn("border-t border-[var(--gov-border-light)]", f?.location && "cursor-pointer hover:bg-amber-50", focus === key && "bg-amber-50")}
+                      className={cn("border-t border-[var(--gov-border-light)] transition-colors duration-300", f?.location && "cursor-pointer hover:bg-amber-50", focus === key && "bg-amber-100")}
                     >
                       <td className="px-3 py-1.5 align-top">
                         <span className="block text-[var(--gov-navy)] font-medium">{t(getFieldLabel(key))}</span>
@@ -272,7 +291,7 @@ export function ValidationPanel({ detail }: { detail: RecordDetail }) {
           const state = errors ? "fail" : warnings ? "warn" : "pass";
           const Icon = state === "fail" ? XCircle : state === "warn" ? AlertTriangle : CheckCircle2;
           return (
-            <div key={stage.name} className="flex items-center gap-2">
+            <div key={stage.name} className="dh-in flex items-center gap-2" style={{ animationDelay: `${i * 160}ms` }}>
               <div
                 className={cn(
                   "rounded-lg border px-3 py-2 min-w-[130px]",

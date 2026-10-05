@@ -4,8 +4,8 @@
     {
       "type": "Feature",
       "properties": {
-        "name": "Khasra 512/3, Chinhat (sample survey boundary for the workflow demo)",
-        "khasra": "512/3",
+        "name": "Khasra 618/2, Chinhat (sample survey boundary for the workflow demo)",
+        "khasra": "618/2",
         "village": "Chinhat",
         "source": "Sample DGPS survey — demo data"
       },

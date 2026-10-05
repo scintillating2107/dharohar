@@ -217,3 +217,40 @@ body {
   color: var(--gov-text);
 }
 
+
+/* ── Workflow demo motion ─────────────────────────────────────────────── */
+@keyframes dh-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes dh-grow-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes dh-pop {
+  0% { opacity: 0; transform: scale(0.85); }
+  70% { opacity: 1; transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@keyframes dh-flow {
+  from { background-position: 0 0; }
+  to { background-position: 24px 0; }
+}
+@keyframes dh-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.dh-in { animation: dh-fade-up 0.45s ease-out both; }
+.dh-pop { animation: dh-pop 0.4s ease-out both; }
+.dh-grow { transform-origin: left center; animation: dh-grow-x 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.dh-flow {
+  background-image: linear-gradient(90deg, var(--gov-saffron) 50%, transparent 50%);
+  background-size: 12px 2px;
+  background-repeat: repeat-x;
+  background-position: 0 center;
+  animation: dh-flow 0.9s linear infinite;
+}
+.dh-progress { transform-origin: left center; animation-name: dh-progress; animation-timing-function: linear; animation-fill-mode: both; }
+@media (prefers-reduced-motion: reduce) {
+  .dh-in, .dh-pop, .dh-grow, .dh-flow { animation: none !important; }
+}

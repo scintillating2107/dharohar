@@ -1,13 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale } from "@/contexts/LocaleContext";
 import { MoveHorizontal } from "lucide-react";
 
 /** Before/after image comparison with a draggable divider (keyboard accessible range input). */
 export function CompareSlider({ before, after, beforeLabel, afterLabel }: { before: string; after: string; beforeLabel: string; afterLabel: string }) {
   const { t } = useLocale();
-  const [pos, setPos] = useState(50);
+  const [pos, setPos] = useState(100);
+  const touched = useRef(false);
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      const id = requestAnimationFrame(() => setPos(50));
+      return () => cancelAnimationFrame(id);
+    }
+    // 100 → 8 → 50: reveal the enhanced page, then settle in the middle
+    const keyframes = [100, 8, 50];
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      if (touched.current) return;
+      const tSec = (now - start) / 1000 - 0.6;
+      if (tSec < 0) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      const seg = Math.min(1.999, tSec / 1.4);
+      const i = Math.floor(seg);
+      const f = seg - i;
+      const eased = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+      setPos(keyframes[i] + (keyframes[i + 1] - keyframes[i]) * eased);
+      if (tSec < 2.8) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   return (
     <div className="relative select-none overflow-hidden rounded-lg border border-[var(--gov-border-light)] bg-[var(--gov-bg-subtle)]">
@@ -30,7 +57,10 @@ export function CompareSlider({ before, after, beforeLabel, afterLabel }: { befo
         min={0}
         max={100}
         value={pos}
-        onChange={(e) => setPos(Number(e.target.value))}
+        onChange={(e) => {
+          touched.current = true;
+          setPos(Number(e.target.value));
+        }}
         aria-label={t("Drag to compare before and after")}
         className="absolute inset-0 h-full w-full cursor-ew-resize opacity-0"
       />

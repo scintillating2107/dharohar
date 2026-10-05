@@ -90,7 +90,7 @@ export function ConfidencePanel({ detail, settings }: { detail: RecordDetail; se
                   <span className={cn("tabular-nums font-semibold shrink-0", low ? "text-amber-700" : "text-[var(--gov-green)]")}>{pct(f.confidence)}</span>
                 </div>
                 <div className="relative mt-1 h-2 rounded-full bg-[var(--gov-border-light)]">
-                  <div className={cn("h-2 rounded-full", low ? "bg-amber-500" : "bg-[var(--gov-green)]")} style={{ width: pct(f.confidence) }} />
+                  <div className={cn("dh-grow h-2 rounded-full", low ? "bg-amber-500" : "bg-[var(--gov-green)]")} style={{ width: pct(f.confidence) }} />
                   <div className="absolute -top-1 h-4 w-0.5 bg-[var(--gov-navy)]" style={{ left: pct(review) }} />
                 </div>
                 {(f.modelConfidence !== undefined || f.ocrConfidence !== undefined) && (

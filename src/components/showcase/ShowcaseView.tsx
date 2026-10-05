@@ -18,8 +18,7 @@ import { hasPermission } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import type { Document, PaginatedResponse } from "@/types";
 import { Maximize2, Minimize2, PlayCircle } from "lucide-react";
-import { SHOWCASE_STEPS } from "./content";
-import { StepFooter, StepNarration, StepPanel, StepRail, useStepKeys } from "./ShowcaseStage";
+import { INTRO, StepFooter, StepHeader, StepNotes, StepPanel, StepRail, TourIntro, parseStep, useStepKeys, useTour } from "./ShowcaseStage";
 
 const DONE = new Set(["VERIFICATION_REQUIRED", "VERIFIED", "REJECTED", "VALIDATED", "FAILED"]);
 
@@ -38,7 +37,7 @@ export function ShowcaseView() {
   const [fullscreen, setFullscreen] = useState(false);
   const [starting, setStarting] = useState(false);
 
-  const step = Math.min(SHOWCASE_STEPS.length - 1, Math.max(0, Number(params.get("step") ?? 1) - 1));
+  const step = parseStep(params.get("step"));
   const list = useApi<PaginatedResponse<Document>>("/api/documents?pageSize=50");
   const candidates = (list.data?.items ?? []).filter((d) => d.recordId || !DONE.has(d.status));
   const fallback = candidates.find((d) => /demo/i.test(d.name) && d.recordId) ?? candidates.find((d) => d.recordId);
@@ -65,6 +64,11 @@ export function ShowcaseView() {
 
   const goStep = useCallback((n: number) => go({ step: n }), [go]);
   useStepKeys(step, goStep);
+  const tour = useTour(step, goStep);
+  const play = () => {
+    if (step === INTRO) goStep(0);
+    tour.setPlaying(true);
+  };
 
   useEffect(() => {
     const onChange = () => setFullscreen(Boolean(window.document.fullscreenElement));
@@ -82,7 +86,7 @@ export function ShowcaseView() {
       const blob = await fetch("/samples/demo-khatauni-hi.jpg").then((r) => r.blob());
       const form = new FormData();
       form.append("file", new File([blob], "demo-khatauni-chinhat-hi.jpg", { type: "image/jpeg" }));
-      form.append("name", "Khatauni Chinhat 512/3 (demo)");
+      form.append("name", "Khatauni Chinhat 618/2 (demo)");
       form.append("recordType", "Khatauni / Record of Rights");
       form.append("sourceOffice", "Tehsil office");
       form.append("state", "Uttar Pradesh");
@@ -128,7 +132,17 @@ export function ShowcaseView() {
     );
   } else if (!ready) body = detail.error ? <ErrorState message={detail.error} onRetry={detail.reload} /> : <LoadingState />;
   else {
-    body = <StepPanel step={step} detail={detail.data!} settings={settings} onChanged={detail.reload} />;
+    const d = detail.data!;
+    body =
+      step === INTRO ? (
+        <TourIntro detail={d} settings={settings} onStep={goStep} onPlay={play} />
+      ) : (
+        <div className="space-y-5">
+          <StepHeader step={step} detail={d} settings={settings} />
+          <StepPanel step={step} detail={d} settings={settings} onChanged={detail.reload} />
+          <StepNotes step={step} />
+        </div>
+      );
   }
 
   return (
@@ -161,15 +175,11 @@ export function ShowcaseView() {
           }
         />
 
-        <StepRail step={step} onStep={goStep} />
+        <StepRail step={step} onStep={goStep} playing={tour.playing} onTogglePlay={() => (tour.playing ? tour.setPlaying(false) : play())} seconds={tour.seconds} />
 
-        <div className="grid min-[1700px]:grid-cols-[320px_minmax(0,1fr)] gap-5 items-start">
-          <StepNarration step={step} document={document} />
-
-          <section aria-live="polite" className="min-w-0">
-            {body}
-          </section>
-        </div>
+        <section aria-live="polite" className="min-w-0">
+          {body}
+        </section>
 
         <StepFooter step={step} onStep={goStep} />
       </div>
