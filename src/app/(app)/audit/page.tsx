@@ -1,85 +1,79 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { AppLayout, PageTitle } from "@/components/layout/AppLayout";
+import { useLocale } from "@/contexts/LocaleContext";
 import { AuditTimeline } from "@/components/audit/AuditTimeline";
 import { Pagination } from "@/components/ui/Pagination";
-import { SearchFilter } from "@/components/ui/SearchFilter";
 import { Button } from "@/components/ui/Button";
-import { LoadingState } from "@/components/ui/States";
+import { Input } from "@/components/ui/Input";
+import { LoadingState, ErrorState } from "@/components/ui/States";
 import { Card } from "@/components/ui/Card";
-import { apiGet } from "@/lib/api-client";
+import { useApi } from "@/lib/use-api";
 import type { AuditEvent, PaginatedResponse } from "@/types";
+import { ShieldCheck, ShieldAlert } from "lucide-react";
 
 function AuditContent() {
-  const searchParams = useSearchParams();
-  const initialRecord = searchParams.get("recordId") || "";
-  const [data, setData] = useState<PaginatedResponse<AuditEvent> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [recordId, setRecordId] = useState(initialRecord);
+  const params = useSearchParams();
+  const { t } = useLocale();
+  const [input, setInput] = useState(params.get("recordId") ?? "");
+  const [filter, setFilter] = useState(params.get("recordId") ?? "");
   const [page, setPage] = useState(1);
+  const [check, setCheck] = useState(0);
 
-  const load = async (filter?: string, p = page) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ pageSize: "30", page: String(p) });
-      if (filter) params.set("recordId", filter);
-      const result = await apiGet<PaginatedResponse<AuditEvent>>(`/api/audit?${params}`);
-      setData(result);
-    } catch {
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    setRecordId(initialRecord);
-  }, [initialRecord]);
-
-  useEffect(() => {
-    load(recordId, page);
-  }, [page, recordId]);
+  const qs = new URLSearchParams({ pageSize: "30", page: String(page) });
+  if (filter.startsWith("DOC-")) qs.set("documentId", filter);
+  else if (filter) qs.set("recordId", filter);
+  const { data, error, initialLoading, reload } = useApi<PaginatedResponse<AuditEvent>>(`/api/audit?${qs}`);
+  const chain = useApi<{ valid: boolean; checked: number; brokenAtSeq?: number }>(check ? `/api/audit/verify?n=${check}` : null);
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--gov-navy)]">Complete record history</h1>
-        <p className="text-sm text-[var(--gov-text-muted)] mt-1">
-          End-to-end audit trail from upload through verification and certification.
-        </p>
-      </div>
-
-      <SearchFilter
-        search={recordId}
-        onSearchChange={setRecordId}
-        onSearch={() => { setPage(1); load(recordId, 1); }}
-        placeholder="Filter by Record ID..."
-        filters={
-          recordId ? (
-            <Button variant="ghost" size="sm" onClick={() => { setRecordId(""); setPage(1); }}>
-              Clear
-            </Button>
-          ) : undefined
+    <div className="space-y-6 max-w-4xl">
+      <PageTitle
+        title="Audit log"
+        description="Every action is appended to a SHA-256 hash chain: editing, inserting or deleting any entry breaks every later hash."
+        actions={
+        <div className="flex items-center gap-3">
+          {chain.data && (
+            <span className={`inline-flex items-center gap-1 text-sm font-semibold ${chain.data.valid ? "text-[var(--gov-green)]" : "text-red-700"}`}>
+              {chain.data.valid ? <ShieldCheck className="h-4 w-4" /> : <ShieldAlert className="h-4 w-4" />}
+              {chain.data.valid ? t("Chain intact ({n} entries)", { n: chain.data.checked }) : t("Broken at #{n}", { n: chain.data.brokenAtSeq ?? "?" })}
+            </span>
+          )}
+          <Button variant="outline" size="sm" loading={chain.loading} onClick={() => setCheck((n) => n + 1)}>
+            {t("Verify chain")}
+          </Button>
+        </div>
         }
       />
 
-      <Card title="Timeline">
-        {loading ? (
+      <form
+        className="flex flex-wrap gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setPage(1);
+          setFilter(input.trim());
+        }}
+      >
+        <Input className="max-w-sm" placeholder={t("Filter by record ID (LR-…) or document ID (DOC-…)")} value={input} onChange={(e) => setInput(e.target.value)} />
+        <Button type="submit" variant="outline">{t("Filter")}</Button>
+        {filter && (
+          <Button type="button" variant="ghost" onClick={() => { setInput(""); setFilter(""); setPage(1); }}>
+            {t("Clear")}
+          </Button>
+        )}
+      </form>
+
+      <Card>
+        {initialLoading ? (
           <LoadingState />
+        ) : !data ? (
+          <ErrorState message={error || "Could not load audit log"} onRetry={reload} />
         ) : (
           <>
-            <AuditTimeline events={data?.items || []} variant="full" />
-            {data && (
-              <Pagination
-                page={data.page}
-                totalPages={data.totalPages}
-                total={data.total}
-                pageSize={data.pageSize}
-                onPageChange={setPage}
-              />
-            )}
+            <AuditTimeline events={data.items} variant="full" />
+            <Pagination page={data.page} totalPages={data.totalPages} total={data.total} pageSize={data.pageSize} onPageChange={setPage} />
           </>
         )}
       </Card>
@@ -89,7 +83,7 @@ function AuditContent() {
 
 export default function AuditPage() {
   return (
-    <AppLayout title="Audit trail">
+    <AppLayout title="Audit log">
       <Suspense fallback={<LoadingState />}>
         <AuditContent />
       </Suspense>

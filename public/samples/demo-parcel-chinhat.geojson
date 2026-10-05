@@ -1,0 +1,26 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Khasra 512/3, Chinhat (sample survey boundary for the workflow demo)",
+        "khasra": "512/3",
+        "village": "Chinhat",
+        "source": "Sample DGPS survey — demo data"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [81.04780, 26.87940],
+            [81.04846, 26.87942],
+            [81.04844, 26.87999],
+            [81.04779, 26.87997],
+            [81.04780, 26.87940]
+          ]
+        ]
+      }
+    }
+  ]
+}

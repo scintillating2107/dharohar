@@ -1,7 +1,7 @@
-import { clearAuthCookie } from "@/lib/auth";
-import { apiSuccess } from "@/lib/api-utils";
+import { clearSessionCookie } from "@/server/auth";
+import { handle, ok } from "@/server/http";
 
-export async function POST() {
-  await clearAuthCookie();
-  return apiSuccess({ message: "Logged out" });
-}
+export const POST = handle(async () => {
+  await clearSessionCookie();
+  return ok({ loggedOut: true });
+});

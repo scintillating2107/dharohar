@@ -10,7 +10,7 @@ export const STUDY_PILLARS = [
   {
     title: "Multilingual recognition",
     description:
-      "OCR and NLP for printed and handwritten text; language detection step in the pipeline with support for major Indian languages via Gemini / Indic-capable models.",
+      "Script and orientation detection, Tesseract OCR models for 12 languages, and Gemini transcription for handwritten records.",
   },
   {
     title: "Structured extraction",
@@ -30,7 +30,7 @@ export const STUDY_PILLARS = [
   {
     title: "LRMS / GIS integration",
     description:
-      "REST APIs and integration hooks for image processing, OCR, extraction, validation, and parcel storage; Leaflet GIS for cadastral linkage.",
+      "API keys, GeoJSON parcels, bulk export and signed webhooks for LRMS / DILRMP / GIS systems; surveyed parcel boundaries with area cross-checks.",
   },
   {
     title: "Governance & RBAC",
@@ -67,14 +67,15 @@ export const STAKEHOLDERS = [
 ] as const;
 
 export const SUGGESTED_TECH_STACK = [
-  { component: "Application & APIs", technology: "Next.js, TypeScript, RESTful APIs" },
-  { component: "Database & GIS", technology: "PostgreSQL + PostGIS (target); Leaflet maps in UI" },
-  { component: "Computer vision", technology: "OpenCV, RealESRGAN enhancement (Member 2 service)" },
-  { component: "OCR & NLP", technology: "Gemini / PaddleOCR, semantic field extraction" },
-  { component: "Validation", technology: "Rule engine + duplicate detection (Member 5)" },
-  { component: "Dashboards", technology: "Recharts — processing, validation, state/district progress" },
-  { component: "Notifications", technology: "In-app notifications API (SMS/email gateway ready)" },
-  { component: "Cloud (deployment)", technology: "NIC MeghRaj / AWS Gov / Azure — container-ready services" },
+  { component: "Application & APIs", technology: "Next.js 16, TypeScript, versioned REST API (/api/v1) with OpenAPI spec" },
+  { component: "Database", technology: "PostgreSQL via Drizzle ORM (embedded PGlite for single-machine installs)" },
+  { component: "Job processing", technology: "Postgres-backed durable job queue with retries and resume-from-failed-step" },
+  { component: "Computer vision", technology: "sharp/libvips: deskew, background flattening, denoise; optional RealESRGAN service" },
+  { component: "OCR & NLP", technology: "Tesseract (word boxes, OSD script/orientation) + Gemini transcription & extraction" },
+  { component: "GIS", technology: "Leaflet + Geoman drawing, GeoJSON/KML import, Turf geodesic area" },
+  { component: "Integrity", technology: "SHA-256 file fingerprints, hash-chained audit log, Ed25519-signed certificates" },
+  { component: "Notifications", technology: "In-app notifications, SMTP email, SMS gateway webhook" },
+  { component: "Deployment", technology: "Docker Compose (app + PostgreSQL) or Vercel with managed Postgres and S3 storage" },
 ] as const;
 
 export const DASHBOARD_METRICS_STUDY = [

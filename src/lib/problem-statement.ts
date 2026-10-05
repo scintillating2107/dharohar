@@ -1,5 +1,3 @@
-import { DEMO_RECORD_ID } from "@/lib/record-ids";
-
 /** Ministry / department naming constants for portal chrome. */
 
 export const PS_ID = "26018";
@@ -38,35 +36,22 @@ export const PS_PROBLEMS = [
 export const SCOPE_OF_STUDY_ROWS: { area: string; relevance: string }[] = [
   {
     area: "Artificial Intelligence (AI)",
-    relevance: "Orchestrates extraction, validation scoring, and routing to human review.",
+    relevance: "Orchestrates extraction, validation scoring, routing to human review and learning from corrections.",
   },
   {
     area: "Optical Character Recognition (OCR)",
-    relevance: "Printed and handwritten text from scans and PDFs; multilingual Indic support.",
+    relevance: "Tesseract word-level OCR with script/orientation detection; Gemini transcription for handwriting.",
   },
   {
     area: "Computer Vision (CV)",
-    relevance: "Image enhancement, quality checks, skew/blur detection before OCR.",
+    relevance: "Deskew, background flattening, denoising and measured blur / contrast / noise before OCR.",
   },
   {
     area: "Natural Language Processing (NLP)",
-    relevance: "Semantic field extraction and classification into LRMS field schema.",
+    relevance: "Semantic field extraction into the LRMS field schema with bilingual rule-based cross-checks.",
   },
   {
     area: "Machine Learning (ML)",
-    relevance: "Confidence scoring, duplicate similarity, and feedback loop for accuracy (roadmap).",
+    relevance: "Confidence scoring, cross-script duplicate similarity, and a correction feedback loop.",
   },
 ];
-
-export const DEMO_CAPABILITY_LINKS = [
-  { label: "Multilingual OCR & NLP", href: `/records/${DEMO_RECORD_ID}?tab=ocr`, ps: "Items 7–8" },
-  { label: "Field classification", href: `/records/${DEMO_RECORD_ID}?tab=extracted`, ps: "Item 9" },
-  { label: "Validation & duplicates", href: "/validation?duplicates=1", ps: "Item 10" },
-  { label: "Confidence & human review", href: "/verification", ps: "Items 11–12" },
-  { label: "LRMS / DILRMP / GIS", href: "/gis", ps: "Item 14" },
-  { label: "Repository & audit trail", href: "/audit", ps: "Item 15" },
-  { label: "Dashboards & progress", href: "/dashboard/overview", ps: "Monitoring" },
-  { label: "Government APIs", href: "/about", ps: "APIs" },
-  { label: "Role-based access", href: "/users", ps: "RBAC" },
-  { label: "End-to-end demo", href: "/demo/workflow", ps: "Full workflow" },
-] as const;

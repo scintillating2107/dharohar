@@ -1,44 +1,38 @@
-import { NextRequest } from "next/server";
-import { store } from "@/lib/store";
-import { hashPassword, createToken, setAuthCookie } from "@/lib/auth";
-import { apiSuccess, apiError } from "@/lib/api-utils";
+import { eq } from "drizzle-orm";
+import { clientIp, createSessionToken, hashPassword, passwordProblem, setSessionCookie } from "@/server/auth";
+import { appendAudit } from "@/server/audit";
+import { newId } from "@/server/crypto";
+import { getDb } from "@/server/db/client";
+import { users } from "@/server/db/schema";
+import { getUserRow, toUser } from "@/server/repo";
+import { fail, handle, ok } from "@/server/http";
 
-/** Demo citizen self-registration (training / presentation). */
-export async function POST(request: NextRequest) {
-  try {
-    const { name, email, password } = await request.json();
+/** Citizen self-registration. Officer accounts are created by administrators. */
+export const POST = handle(async (request: Request) => {
+  const { name, email, password, district, phone } = await request.json();
+  if (!name?.trim() || !email?.trim() || !password) return fail("Name, email, and password are required");
+  const normalized = String(email).trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return fail("Enter a valid email address");
+  const problem = passwordProblem(password);
+  if (problem) return fail(problem);
 
-    if (!name?.trim() || !email?.trim() || !password) {
-      return apiError("Name, email, and password are required");
-    }
-    if (password.length < 6) {
-      return apiError("Password must be at least 6 characters");
-    }
+  const db = await getDb();
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, normalized));
+  if (existing) return fail("An account with this email already exists", 409);
 
-    const normalized = email.trim().toLowerCase();
-    const existing = store.users.find((u) => u.email.toLowerCase() === normalized);
-    if (existing) {
-      return apiError("An account with this email already exists", 409);
-    }
-
-    const now = new Date().toISOString();
-    const id = `U${String(store.users.length + 1).padStart(3, "0")}`;
-    const user = {
-      id,
-      email: normalized,
-      name: name.trim(),
-      role: "CITIZEN" as const,
-      district: "Lucknow",
-      createdAt: now,
-    };
-    const hash = await hashPassword(password);
-    store.addUser(user, hash);
-
-    const token = await createToken(user);
-    await setAuthCookie(token);
-
-    return apiSuccess({ user, token }, "Registration successful");
-  } catch {
-    return apiError("Registration failed", 500);
-  }
-}
+  const id = newId("U");
+  await db.insert(users).values({
+    id,
+    email: normalized,
+    name: String(name).trim().slice(0, 120),
+    role: "CITIZEN",
+    district: district?.trim() || null,
+    phone: phone?.trim() || null,
+    passwordHash: await hashPassword(password),
+    notificationPrefs: { email: true, sms: false, inApp: true },
+  });
+  const user = toUser((await getUserRow(id))!);
+  await appendAudit({ action: "USER_CREATED", actor: id, actorName: user.name, details: `Citizen self-registration from ${clientIp(request)}` });
+  await setSessionCookie(await createSessionToken(user));
+  return ok({ user }, { message: "Registration successful" });
+});

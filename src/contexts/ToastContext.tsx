@@ -7,7 +7,8 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { CheckCircle2, AlertCircle, AlertTriangle, Info } from "lucide-react";
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
+import { useLocale } from "@/contexts/LocaleContext";
 
 type ToastType = "success" | "error" | "warning" | "info";
 
@@ -54,6 +55,7 @@ const toastStyles = {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const { tx, t: tr } = useLocale();
 
   const dismiss = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -63,7 +65,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (message: string, type: ToastType = "info") => {
       const id = Math.random().toString(36).substring(2);
       setToasts((prev) => [...prev, { id, message, type }]);
-      setTimeout(() => dismiss(id), 4500);
+      setTimeout(() => dismiss(id), type === "error" ? 8000 : 4500);
     },
     [dismiss]
   );
@@ -71,7 +73,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toasts, toast, dismiss }}>
       {children}
-      <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 max-w-sm">
+      <div className="fixed bottom-5 right-4 left-4 sm:left-auto z-[100] flex flex-col gap-2 sm:max-w-sm" aria-live="polite">
         {toasts.map((t) => {
           const style = toastStyles[t.type];
           const Icon = style.icon;
@@ -79,10 +81,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               key={t.id}
               className={`flex items-start gap-3 rounded-md px-4 py-3 text-sm shadow-lg ${style.bg}`}
-              role="alert"
+              role={t.type === "error" ? "alert" : "status"}
             >
               <Icon className={`h-4 w-4 flex-shrink-0 mt-0.5 ${style.iconColor}`} />
-              <span className={`font-medium ${style.text}`}>{t.message}</span>
+              <span className={`font-medium flex-1 ${style.text}`}>{tx(t.message)}</span>
+              <button type="button" onClick={() => dismiss(t.id)} className="text-[var(--gov-text-light)] hover:text-[var(--gov-navy)]" aria-label={tr("Dismiss")}>
+                <X className="h-4 w-4" />
+              </button>
             </div>
           );
         })}

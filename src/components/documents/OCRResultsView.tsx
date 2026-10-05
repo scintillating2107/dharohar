@@ -3,101 +3,69 @@
 import { useState } from "react";
 import type { Document, OCRResult } from "@/types";
 import { Card } from "@/components/ui/Card";
-import { DocumentViewer } from "@/components/documents/DocumentViewer";
-import { Button } from "@/components/ui/Button";
+import { DocumentViewer, type ViewerBox } from "@/components/documents/DocumentViewer";
 import { cn, formatConfidence } from "@/lib/utils";
-import { Box, Eye, EyeOff, RotateCw } from "lucide-react";
+import { useLocale } from "@/contexts/LocaleContext";
 
-export function OCRResultsView({
-  document,
-  ocr,
-}: {
-  document: Document;
-  ocr: OCRResult;
-}) {
-  const [page, setPage] = useState(0);
+/** Side-by-side scan with word boxes (coloured by confidence) and the recognised text per page. */
+export function OCRResultsView({ document, ocr }: { document: Document; ocr: OCRResult }) {
+  const { t } = useLocale();
+  const [page, setPage] = useState(ocr.pages[0]?.page ?? 1);
   const [showBoxes, setShowBoxes] = useState(true);
-  const [showConfidence, setShowConfidence] = useState(true);
-  const [processedView, setProcessedView] = useState(false);
-
-  const pageResult = ocr.pages[page] ?? ocr.pages[0];
-  const regions = pageResult?.regions ?? [];
+  const [hovered, setHovered] = useState<number | null>(null);
+  const result = ocr.pages.find((p) => p.page === page) ?? ocr.pages[0];
+  const boxes: ViewerBox[] = showBoxes
+    ? (result?.regions ?? []).map((r, i) => ({ page: result.page, bbox: r.bbox, key: `w${i}`, label: `${r.text} (${formatConfidence(r.confidence)})`, confidence: r.confidence }))
+    : [];
+  const low = (result?.regions ?? []).filter((r) => r.confidence < 0.75);
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6 min-h-[520px]">
-      <Card title="Original document">
-        <div className="flex flex-wrap gap-2 mb-3">
-          <Button size="sm" variant="outline" onClick={() => setShowBoxes(!showBoxes)}>
-            <Box className="h-3.5 w-3.5" /> {showBoxes ? "Hide" : "Show"} bounding boxes
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setProcessedView(!processedView)}>
-            {processedView ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            {processedView ? "Original" : "Processed"}
-          </Button>
-          <Button size="sm" variant="ghost">
-            <RotateCw className="h-3.5 w-3.5" /> Rotate
-          </Button>
+    <div className="grid lg:grid-cols-2 gap-6 min-h-[560px]">
+      <div className="min-h-[560px] flex flex-col">
+        <label className="flex items-center gap-2 text-sm mb-2 text-[var(--gov-navy)]">
+          <input type="checkbox" checked={showBoxes} onChange={(e) => setShowBoxes(e.target.checked)} /> {t("Show word boxes")}
+          <span className="text-xs text-[var(--gov-text-muted)]">{t("(green ≥ 90%, amber ≥ 75%, red below)")}</span>
+        </label>
+        <div className="flex-1">
+          <DocumentViewer pages={document.pages} boxes={boxes} page={page} onPageChange={setPage} highlightKey={hovered !== null ? `w${hovered}` : undefined} />
         </div>
-        <DocumentViewer
-          pages={document.pages}
-          regions={showBoxes ? regions : []}
-          fileType={document.fileType}
-        />
-      </Card>
+      </div>
 
-      <Card title="OCR output">
-        <div className="flex items-center gap-2 mb-3 text-xs">
-          {ocr.pages.map((p, i) => (
-            <button
-              key={p.page}
-              type="button"
-              onClick={() => setPage(i)}
-              className={cn(
-                "px-2.5 py-1 rounded border font-medium",
-                i === page ? "border-[var(--gov-navy)] bg-[var(--gov-navy)]/5" : "border-[var(--gov-border)]"
-              )}
-            >
-              Page {p.page}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="ml-auto text-[var(--gov-navy-light)] font-semibold"
-            onClick={() => setShowConfidence(!showConfidence)}
-          >
-            {showConfidence ? "Hide" : "Show"} confidence
-          </button>
+      <Card title={t("OCR text — page {n}", { n: result?.page ?? "—" })}>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--gov-text-muted)] mb-3">
+          <span>{t("Language")}: <strong className="text-[var(--gov-navy)]">{result?.language ?? "—"}</strong></span>
+          <span>{t("Words")}: <strong className="text-[var(--gov-navy)]">{result?.regions.length ?? 0}</strong></span>
+          {result?.meanConfidence !== undefined && (
+            <span>{t("Mean confidence")}: <strong className="text-[var(--gov-navy)]">{formatConfidence(result.meanConfidence)}</strong></span>
+          )}
+          {result?.engine && <span className="font-mono">{result.engine}</span>}
         </div>
-
-        <pre className="text-sm leading-relaxed font-mono bg-[var(--gov-bg-subtle)] rounded-lg p-4 whitespace-pre-wrap border border-[var(--gov-border-light)] min-h-[200px]">
-          {pageResult?.text}
+        <pre className="text-sm leading-relaxed bg-[var(--gov-bg-subtle)] rounded-lg p-4 whitespace-pre-wrap border border-[var(--gov-border-light)] min-h-[200px] max-h-[420px] overflow-auto font-sans">
+          {result?.text || t("No text recognised on this page.")}
         </pre>
-
-        {showConfidence && regions.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--gov-text-muted)]">
-              Confidence visualization
+        {low.length > 0 && (
+          <div className="mt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--gov-text-muted)] mb-2">
+              {t("Low-confidence words ({n})", { n: low.length })}
             </p>
-            {regions.slice(0, 12).map((r, i) => (
-              <ConfidenceLine key={i} text={r.text} confidence={r.confidence} />
-            ))}
+            <div className="flex flex-wrap gap-1.5">
+              {(result?.regions ?? []).map((r, i) =>
+                r.confidence < 0.75 ? (
+                  <button
+                    key={i}
+                    type="button"
+                    onMouseEnter={() => setHovered(i)}
+                    onMouseLeave={() => setHovered(null)}
+                    className={cn("rounded border px-1.5 py-0.5 text-xs", r.confidence < 0.5 ? "border-red-300 bg-red-50" : "border-amber-300 bg-amber-50")}
+                  >
+                    {r.text} <span className="text-[var(--gov-text-muted)]">{formatConfidence(r.confidence)}</span>
+                  </button>
+                ) : null
+              )}
+            </div>
           </div>
         )}
       </Card>
-    </div>
-  );
-}
-
-function ConfidenceLine({ text, confidence }: { text: string; confidence: number }) {
-  const level = confidence >= 0.9 ? "high" : confidence >= 0.75 ? "medium" : "low";
-  const dot =
-    level === "high" ? "🟢" : level === "medium" ? "🟠" : "🔴";
-  return (
-    <div className="flex items-center justify-between text-sm py-1 border-b border-[var(--gov-border-light)] last:border-0">
-      <span className="text-[var(--gov-navy)] truncate pr-4">{text}</span>
-      <span className="flex items-center gap-2 flex-shrink-0 font-medium">
-        {formatConfidence(confidence)} {dot}
-      </span>
     </div>
   );
 }

@@ -1,178 +1,53 @@
-# API Contracts
+# API
 
-Integration contracts between Dharohar (Member 1) and other team modules.
+All responses from session endpoints use `{ "success": boolean, "data"?: T, "error"?: string }`.
+The machine-readable spec for the external API is served at `/api/v1/openapi.json`.
 
-## Member 2 — Image Processing
+## External API (`/api/v1`, API key)
 
-**Endpoint (proposed):** `POST /api/image-processing/process`
+Create keys under **Integrations** (admin). Send `Authorization: Bearer dh_xxxxxxxx_…`.
+Scopes: `records:read`, `parcels:read`, `certificates:read`, `export:read`.
 
-**Input:**
-```json
-{
-  "document_id": "DOC-LR10245",
-  "page": 1,
-  "file_reference": "..."
-}
-```
+| Method & path | Notes |
+|---|---|
+| `GET /api/v1/records?district=&tehsil=&village=&state=&khasra=&updated_since=&limit=&offset=&status=ALL` | Verified records by default; `khasra` is normalised (`२३५ / १` = `235/1`) |
+| `GET /api/v1/records/{id}` | One record |
+| `GET /api/v1/records/{id}/certificate` | Certificate plus live re-verification checks |
+| `GET /api/v1/parcels?district=&village=&surveyed_only=true` | GeoJSON FeatureCollection (polygons if surveyed, else points) |
+| `GET /api/v1/export?format=csv|json&district=` | Bulk export of verified records |
 
-**Output:**
-```json
-{
-  "document_id": "LR10245",
-  "pages": [
-    {
-      "page": 1,
-      "processed_image_url": "...",
-      "quality_score": 82,
-      "blur_detected": false,
-      "skew_angle": 0.4,
-      "rotation_corrected": true
-    }
-  ]
-}
-```
+Record shape: `record_id, version, status, owners[{name, relation_name, relation_type, share}], owner_name, father_name,
+khasra_number, khata_number, survey_number, land_type, area, area_unit, area_hectares, village, tehsil, district, state,
+registration_number, mutation_number, mutation_date, record_year, verified_at, verified_by,
+certificate{record_hash, signature, key_id, certified_at}, updated_at`.
 
-## Member 3 — OCR
+## Webhooks
 
-**Endpoint (proposed):** `POST /api/ocr/extract`
+Registered under **Integrations**. `POST` to your URL with JSON `{ id, event, occurred_at, data }` and headers
+`X-Dharohar-Event`, `X-Dharohar-Delivery`, `X-Dharohar-Signature: sha256=<HMAC-SHA256(secret, raw body)>`.
+Non-2xx responses are retried up to 6 times with exponential backoff.
+Events: `record.extracted`, `record.verified`, `record.rejected`, `parcel.updated`.
 
-**Output:**
-```json
-{
-  "document_id": "LR10245",
-  "pages": [
-    {
-      "page": 1,
-      "language": "hi",
-      "text": "...",
-      "regions": [
-        {
-          "text": "राम सिंह",
-          "confidence": 0.96,
-          "bbox": [120, 200, 350, 240]
-        }
-      ]
-    }
-  ]
-}
-```
+## Public endpoints
 
-## Member 4 — Field Extraction
+| Path | Purpose |
+|---|---|
+| `GET /api/public/verify/{recordId}` | Certificate verification (target of QR codes) |
+| `GET /api/public/qr/{recordId}` | PNG QR code to `/verify/{recordId}` |
+| `GET /api/health` | Liveness / database check |
 
-**Endpoint (proposed):** `POST /api/extraction/extract`
+## Application endpoints (session cookie)
 
-**Output:**
-```json
-{
-  "document_id": "LR10245",
-  "fields": {
-    "owner_name": { "value": "राम सिंह", "confidence": 0.96 },
-    "khasra_number": { "value": "235/1", "confidence": 0.99 },
-    "area": { "value": "0.2450", "unit": "hectare", "confidence": 0.67 }
-  }
-}
-```
-
-## Member 5 — Validation
-
-**Endpoint (proposed):** `POST /api/validation/validate`
-
-**Output:**
-```json
-{
-  "document_id": "LR10245",
-  "validation_status": "REVIEW_REQUIRED",
-  "validation_score": 86,
-  "errors": [],
-  "warnings": [
-    {
-      "field": "area",
-      "type": "HISTORICAL_MISMATCH",
-      "message": "Area differs from previous record",
-      "current_value": "0.2450 hectare",
-      "previous_value": "0.3200 hectare"
-    }
-  ],
-  "duplicate": { "detected": false, "similarity": 0 }
-}
-```
-
-## Member 6 — Database/GIS
-
-**Record endpoint (proposed):** `GET /api/records/:id`
-
-**Output:**
-```json
-{
-  "record_id": "LR10245",
-  "owner_name": "Ram Singh",
-  "khasra_number": "235/1",
-  "khata_number": "124",
-  "area": 0.245,
-  "village": "Chinhat",
-  "tehsil": "Sadar",
-  "district": "Lucknow",
-  "status": "VERIFIED"
-}
-```
-
-**GIS endpoint (proposed):** `GET /api/gis/parcels`
-
-**Output:**
-```json
-{
-  "parcel_id": "P2351",
-  "khasra_number": "235/1",
-  "geometry": {},
-  "center": { "lat": 26.8467, "lng": 80.9462 }
-}
-```
-
-## Internal Application APIs
-
-All current APIs are served from Next.js at `/api/*`:
-
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `POST /api/auth/logout`
-- `GET/POST /api/documents`
-- `GET /api/documents/:id`
-- `POST/GET /api/documents/:id/process`
-- `GET /api/dashboard`
-- `GET /api/verification`
-- `GET/POST /api/verification/:id`
-- `GET /api/records`
-- `GET /api/records/:id`
-- `GET /api/validation`
-- `GET /api/gis`
-- `GET /api/audit`
-- `GET/POST /api/users`
-
-## Webhook Callback (Async Integration)
-
-Team members running async processing can push results to:
-
-**Endpoint:** `POST /api/integrations/webhooks`
-
-**Body:**
-```json
-{
-  "document_id": "DOC-LR10245",
-  "type": "ocr",
-  "result": { ... }
-}
-```
-
-**Supported types:** `image_processing`, `ocr`, `extraction`, `validation`
-
-Example OCR callback:
-```json
-{
-  "document_id": "DOC-LR10245",
-  "type": "ocr",
-  "result": {
-    "document_id": "DOC-LR10245",
-    "pages": [{ "page": 1, "language": "hi", "text": "...", "regions": [] }]
-  }
-}
-```
+| Area | Endpoints |
+|---|---|
+| Auth | `POST /api/auth/login`, `POST /api/auth/logout`, `GET/PATCH /api/auth/me`, `POST /api/auth/register` (citizens), `POST /api/auth/password` |
+| Documents | `GET/POST /api/documents` (multipart upload; `autoProcess=true` queues), `GET /api/documents/{id}`, `POST /api/documents/{id}/process` (also resumes failed), `GET /api/documents/{id}/file?page=&variant=enhanced|original&download=1` |
+| Verification | `GET /api/verification?status=OPEN&district=&lowConfidence=&validationIssue=&priority=&search=`, `GET /api/verification/{taskOrRecordId}`, `POST /api/verification/{id}` with `{action: save_draft|approve|reject|send_back, fields?, owners?, comment?}` |
+| Records | `GET /api/records`, `GET /api/records/{id}`, `GET /api/records/{id}/certificate`, `GET /api/validation?recordId=` |
+| GIS | `GET /api/gis?district=&village=&status=&geometry=&search=`, `PUT /api/gis/{recordId}` (JSON `{geometry}` or multipart GeoJSON/KML) |
+| Audit | `GET /api/audit?recordId=&documentId=`, `GET /api/audit/verify` |
+| Claims | `GET/POST /api/claims`, `POST /api/claims/{id}` `{decision: APPROVED|REJECTED, comment}` |
+| Dashboards | `GET /api/dashboard`, `GET /api/analytics`, `GET /api/citizen/dashboard`, `GET /api/notifications`, `POST /api/notifications/read` |
+| Learning | `GET /api/learning/metrics`, `GET /api/learning/export` (JSONL) |
+| Admin | `GET/POST /api/users`, `PATCH /api/users/{id}`, `GET/PUT /api/admin/settings`, `GET/POST /api/admin/master-data` (CSV), `GET /api/integrations/health`, `GET/POST /api/integrations/keys`, `DELETE /api/integrations/keys/{id}`, `GET/POST /api/integrations/subscriptions`, `PATCH /api/integrations/subscriptions/{id}` |
+| Misc | `GET /api/settings`, `GET /api/meta/locations?state=&district=` |

@@ -1,123 +1,91 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
-import { JWT_SECRET } from "@/lib/config";
 import { roleCanAccess } from "@/lib/rbac";
-import { getHomePathForRole, isCitizenRole } from "@/lib/citizen";
+import { getHomePathForRole } from "@/lib/dashboard-routes";
 import type { UserRole } from "@/types";
 
-const secret = new TextEncoder().encode(JWT_SECRET);
-const COOKIE_NAME = "dharohar_session";
-const LOCAL_SERVICE_KEY = process.env.INTEGRATION_SERVICE_KEY || "dharohar-local-dev-key";
+/**
+ * Edge gate for pages and APIs. Route handlers re-check the session against the database
+ * (deactivated users, fine-grained permissions); this layer gives fast redirects and blocks
+ * obviously unauthorized traffic.
+ */
 
-const publicPaths = [
+const COOKIE_NAME = "dharohar_session";
+const secret = new TextEncoder().encode(process.env.JWT_SECRET || "dharohar-dev-secret-change-in-production");
+
+const PUBLIC_PREFIXES = [
   "/login",
   "/register",
-  "/demo",
-  "/demo/workflow",
-  "/demo/portal",
-  "/trust/verify",
+  "/verify",
   "/api/auth/login",
   "/api/auth/register",
+  "/api/public",
+  "/api/v1",
+  "/api/health",
 ];
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+/** Superseded prototype routes (scripted demos and the old JSON-store team stubs). */
+const RETIRED_PREFIXES = ["/demo", "/api/local", "/api/integrations/webhooks"];
 
-  if (pathname.startsWith("/api/local/") || pathname.startsWith("/api/integrations/webhooks")) {
-    const key = request.headers.get("x-integration-key");
-    if (key === LOCAL_SERVICE_KEY) {
-      return NextResponse.next();
-    }
-    return NextResponse.json({ success: false, error: "Invalid integration key" }, { status: 401 });
-  }
+function matches(pathname: string, prefixes: string[]): boolean {
+  return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
 
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/samples") ||
-    pathname.startsWith("/favicon") ||
-    pathname.match(/\.(svg|png|jpg|jpeg|gif|ico)$/)
-  ) {
-    return NextResponse.next();
-  }
-
-  const isPublic = publicPaths.some((p) => pathname.startsWith(p));
-  const token = request.cookies.get(COOKIE_NAME)?.value;
-
-  if (pathname === "/") {
-    const url = request.nextUrl.clone();
-    if (!token) {
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
-    }
-    try {
-      const { payload } = await jwtVerify(token, secret);
-      url.pathname = getHomePathForRole(payload.role as string);
-    } catch {
-      url.pathname = "/login";
-    }
-    return NextResponse.redirect(url);
-  }
-
-  if (isPublic) {
-    if (token && (pathname === "/login" || pathname === "/register")) {
-      const url = request.nextUrl.clone();
-      try {
-        const { payload } = await jwtVerify(token, secret);
-        url.pathname = getHomePathForRole(payload.role as string);
-      } catch {
-        url.pathname = "/dashboard";
-      }
-      return NextResponse.redirect(url);
-    }
-    return NextResponse.next();
-  }
-
-  if (!token) {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
+async function roleFromToken(token: string | undefined): Promise<UserRole | null> {
+  if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret);
-    const role = payload.role as UserRole;
-
-    if (pathname === "/dashboard") {
-      const url = request.nextUrl.clone();
-      url.pathname = getHomePathForRole(role);
-      return NextResponse.redirect(url);
-    }
-    if (!isCitizenRole(role) && pathname.startsWith("/citizen")) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      return NextResponse.redirect(url);
-    }
-
-    if (!roleCanAccess(role, pathname)) {
-      if (pathname.startsWith("/api/")) {
-        return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
-      }
-      const url = request.nextUrl.clone();
-      url.pathname = getHomePathForRole(role);
-      return NextResponse.redirect(url);
-    }
-
-    return NextResponse.next();
+    return (payload.role as UserRole) ?? null;
   } catch {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 });
-    }
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    const response = NextResponse.redirect(url);
-    response.cookies.delete(COOKIE_NAME);
-    return response;
+    return null;
   }
 }
 
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isApi = pathname.startsWith("/api/");
+
+  if (matches(pathname, RETIRED_PREFIXES)) {
+    return isApi
+      ? NextResponse.json({ success: false, error: "Not found" }, { status: 404 })
+      : NextResponse.redirect(new URL("/", request.url));
+  }
+
+  const token = request.cookies.get(COOKIE_NAME)?.value;
+  const role = await roleFromToken(token);
+
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL(role ? getHomePathForRole(role) : "/login", request.url));
+  }
+
+  if (matches(pathname, PUBLIC_PREFIXES)) {
+    if (role && (pathname === "/login" || pathname === "/register")) {
+      return NextResponse.redirect(new URL(getHomePathForRole(role), request.url));
+    }
+    return NextResponse.next();
+  }
+
+  if (!role) {
+    if (isApi) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    const url = new URL("/login", request.url);
+    if (pathname !== "/dashboard") url.searchParams.set("next", pathname);
+    const response = NextResponse.redirect(url);
+    if (token) response.cookies.delete(COOKIE_NAME);
+    return response;
+  }
+
+  if (pathname === "/dashboard") {
+    return NextResponse.redirect(new URL(getHomePathForRole(role), request.url));
+  }
+
+  if (!roleCanAccess(role, pathname)) {
+    if (isApi) return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    return NextResponse.redirect(new URL(getHomePathForRole(role), request.url));
+  }
+
+  return NextResponse.next();
+}
+
 export const config = {
-  matcher: ["/((?!_next/static|_next/image).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|ico|webp)$).*)"],
 };

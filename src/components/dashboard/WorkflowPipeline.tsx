@@ -1,8 +1,12 @@
+"use client";
+
 import { PROCESSING_STEPS } from "@/lib/config";
+import { useLocale } from "@/contexts/LocaleContext";
 import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 
 export function WorkflowPipeline({ compact = false }: { compact?: boolean }) {
+  const { t } = useLocale();
   const steps = [
     { label: "Upload", type: "done" },
     { label: "Understand", type: "auto" },
@@ -28,7 +32,7 @@ export function WorkflowPipeline({ compact = false }: { compact?: boolean }) {
           <span key={step.label} className="flex items-center gap-1">
             {i > 0 && <ArrowRight className="h-3 w-3 text-[var(--gov-border)]" />}
             <span className={cn("rounded px-2 py-0.5 border text-[11px] font-medium", stepStyles[step.type])}>
-              {step.label}
+              {t(step.label)}
             </span>
           </span>
         ))}
@@ -41,7 +45,7 @@ export function WorkflowPipeline({ compact = false }: { compact?: boolean }) {
       <div className="gov-card-header">
         <h3 className="text-sm font-semibold text-[var(--gov-navy)] flex items-center gap-2">
           <span className="inline-block w-1 h-4 bg-[var(--gov-saffron)] rounded-full" />
-          Digitization Pipeline
+          {t("Digitization pipeline")}
         </h3>
       </div>
       <div className="p-5">
@@ -50,13 +54,13 @@ export function WorkflowPipeline({ compact = false }: { compact?: boolean }) {
             <div key={step.label} className="flex items-center gap-2">
               {i > 0 && <ArrowRight className="h-4 w-4 text-[var(--gov-border)] flex-shrink-0" />}
               <div className={cn("rounded-md px-3 py-2 text-xs font-semibold border", stepStyles[step.type])}>
-                {step.label}
+                {t(step.label)}
               </div>
             </div>
           ))}
         </div>
         <p className="mt-4 text-xs text-[var(--gov-text-muted)] border-t border-[var(--gov-border-light)] pt-3">
-          {PROCESSING_STEPS.length} steps — computer vision, multilingual OCR/NLP, validation, and human verification before LRMS/GIS storage
+          {t("{n} steps — computer vision, multilingual OCR/NLP, validation, and human verification before LRMS/GIS storage", { n: PROCESSING_STEPS.length })}
         </p>
       </div>
     </div>

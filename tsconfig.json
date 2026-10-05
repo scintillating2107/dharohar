@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "target": "ES2022",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,7 +23,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
   "include": [
@@ -30,5 +36,35 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "services",
+    "src/lib/store.ts",
+    "src/lib/seed-demo.ts",
+    "src/lib/processing-pipeline.ts",
+    "src/lib/file-storage.ts",
+    "src/lib/pdf-renderer.ts",
+    "src/lib/ocr-engine.ts",
+    "src/lib/text-extraction.ts",
+    "src/lib/field-extraction.ts",
+    "src/lib/gis-utils.ts",
+    "src/lib/data-paths.ts",
+    "src/lib/gemini-env.ts",
+    "src/lib/integrations",
+    "src/lib/member-local",
+    "src/mocks",
+    "src/lib/demo-assets.ts",
+    "src/lib/demo-workflow.ts",
+    "src/lib/demo-portal-data.ts",
+    "src/lib/record-ids.ts",
+    "src/lib/auth.ts",
+    "src/lib/api-utils.ts",
+    "src/lib/dashboard-stats.ts",
+    "src/lib/document-metadata.ts",
+    "src/lib/ai-settings.ts",
+    "src/app/api/local",
+    "src/app/api/integrations/webhooks",
+    "src/app/demo",
+    "src/components/demo"
+  ]
 }

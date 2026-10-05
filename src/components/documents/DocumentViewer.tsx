@@ -1,154 +1,143 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { ZoomIn, ZoomOut, Maximize, ChevronLeft, ChevronRight } from "lucide-react";
-import type { DocumentPage, OCRRegion } from "@/types";
+import { useState } from "react";
+import { ZoomIn, ZoomOut, Maximize, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import type { DocumentPage } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/contexts/LocaleContext";
+
+export interface ViewerBox {
+  page: number;
+  bbox: [number, number, number, number];
+  key: string;
+  label?: string;
+  confidence?: number;
+}
 
 interface DocumentViewerProps {
   pages: DocumentPage[];
-  regions?: OCRRegion[];
-  highlightedField?: string;
-  onFieldHighlight?: (fieldKey: string) => void;
-  fileType?: string;
-  pageIndex?: number;
+  /** Boxes in pixel coordinates of the processed page image */
+  boxes?: ViewerBox[];
+  /** Key of the box to emphasise (e.g. focused field) */
+  highlightKey?: string;
+  /** Page to show (1-based); follows the highlighted box when it changes */
+  page?: number;
+  onPageChange?: (page: number) => void;
+  defaultVariant?: "enhanced" | "original";
 }
 
-export function DocumentViewer({
-  pages,
-  regions = [],
-  highlightedField,
-  fileType,
-  pageIndex,
-}: DocumentViewerProps) {
-  const [currentPage, setCurrentPage] = useState(0);
+function boxColor(confidence: number | undefined, highlighted: boolean) {
+  if (highlighted) return "border-amber-500 bg-amber-400/25 ring-2 ring-amber-400";
+  if (confidence === undefined) return "border-blue-500/60 bg-blue-400/10";
+  if (confidence >= 0.9) return "border-green-600/60 bg-green-500/10";
+  if (confidence >= 0.75) return "border-amber-500/70 bg-amber-400/10";
+  return "border-red-500/70 bg-red-400/15";
+}
+
+/**
+ * Page image viewer with overlay boxes. Boxes are scaled by the page's pixel size so they line
+ * up at any zoom level.
+ */
+export function DocumentViewer({ pages, boxes = [], highlightKey, page, onPageChange, defaultVariant = "enhanced" }: DocumentViewerProps) {
+  const { t } = useLocale();
+  const [localPage, setLocalPage] = useState(1);
   const [zoom, setZoom] = useState(1);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [variant, setVariant] = useState<"enhanced" | "original">(defaultVariant);
+  const currentPage = page ?? localPage;
+  const setPage = (p: number) => {
+    setLocalPage(p);
+    onPageChange?.(p);
+  };
 
-  useEffect(() => {
-    if (pageIndex !== undefined && pageIndex >= 0 && pageIndex < pages.length) {
-      setCurrentPage(pageIndex);
-    }
-  }, [pageIndex, pages.length]);
-
-  const page = pages[currentPage];
-  const imageUrl = page?.processedImageUrl || page?.imageUrl;
-  const isPdf = fileType === "application/pdf";
-  const pageRegions = regions.filter((r) => r.fieldKey);
+  const current = pages.find((p) => p.page === currentPage) ?? pages[0];
+  if (!current) {
+    return (
+      <div className="flex items-center justify-center min-h-[420px] rounded-lg border border-dashed border-[var(--gov-border)] bg-white text-sm text-[var(--gov-text-muted)]">
+        {t("Pages appear here once the document has been rendered.")}
+      </div>
+    );
+  }
+  const hasEnhanced = Boolean(current.processedImageUrl);
+  const src = variant === "enhanced" && hasEnhanced ? current.processedImageUrl : current.imageUrl;
+  // Boxes are computed on the processed image; hide them on the original if it was rotated/deskewed
+  const showBoxes = variant === "enhanced" || !hasEnhanced;
+  const pageBoxes = showBoxes ? boxes.filter((b) => b.page === current.page) : [];
+  const index = pages.indexOf(current);
 
   return (
-    <div className="flex flex-col h-full border border-slate-200 rounded-lg bg-slate-100 overflow-hidden">
-      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-3 py-2">
+    <div className="flex flex-col h-full border border-[var(--gov-border-light)] rounded-lg bg-slate-100 overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--gov-border-light)] bg-white px-3 py-2">
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-            disabled={currentPage === 0}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setPage(pages[index - 1].page)} disabled={index <= 0} aria-label={t("Previous page")}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-xs text-slate-600 min-w-[80px] text-center">
-            Page {currentPage + 1} / {pages.length}
+          <span className="text-xs text-[var(--gov-text-muted)] min-w-[80px] text-center">
+            {t("Page {page} of {pages}", { page: current.page, pages: pages.length })}
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentPage(Math.min(pages.length - 1, currentPage + 1))}
-            disabled={currentPage >= pages.length - 1}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setPage(pages[index + 1].page)} disabled={index >= pages.length - 1} aria-label={t("Next page")}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => setZoom(Math.max(0.5, zoom - 0.25))}>
+          {hasEnhanced && (
+            <Button variant="ghost" size="sm" onClick={() => setVariant(variant === "enhanced" ? "original" : "enhanced")}>
+              <Eye className="h-4 w-4" /> {variant === "enhanced" ? t("Enhanced") : t("Original")}
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => setZoom(Math.max(0.5, zoom - 0.25))} aria-label={t("Zoom out")}>
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <span className="text-xs text-slate-500 w-12 text-center">{Math.round(zoom * 100)}%</span>
-          <Button variant="ghost" size="sm" onClick={() => setZoom(Math.min(3, zoom + 0.25))}>
+          <span className="text-xs text-[var(--gov-text-muted)] w-12 text-center">{Math.round(zoom * 100)}%</span>
+          <Button variant="ghost" size="sm" onClick={() => setZoom(Math.min(4, zoom + 0.25))} aria-label={t("Zoom in")}>
             <ZoomIn className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setZoom(1)}>
+          <Button variant="ghost" size="sm" onClick={() => setZoom(1)} aria-label={t("Fit width")}>
             <Maximize className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 overflow-auto p-4">
-        <div className="relative mx-auto" style={{ width: `${zoom * 100}%`, maxWidth: "100%" }}>
-          {imageUrl ? (
-            isPdf && (page?.processedImageUrl || page?.imageUrl?.includes("processed=true")) ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={page?.processedImageUrl || imageUrl}
-                alt={`Document page ${currentPage + 1}`}
-                className="w-full h-auto shadow-md"
-              />
-            ) : isPdf ? (
-              <iframe
-                src={imageUrl}
-                title={`Document page ${currentPage + 1}`}
-                className="w-full min-h-[620px] bg-white shadow-md"
-              />
-            ) : (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={imageUrl}
-                alt={`Document page ${currentPage + 1}`}
-                className="w-full h-auto shadow-md"
-              />
-            )
-          ) : (
-            <div className="flex items-center justify-center min-h-[420px] bg-white border border-dashed border-slate-300 text-sm text-slate-500">
-              No preview available for this page
-            </div>
-          )}
-          {pageRegions.map((region, i) => (
-            region.fieldKey && (
-              <div
-                key={i}
-                className={cn(
-                  "absolute border-2 pointer-events-none transition-colors",
-                  highlightedField === region.fieldKey
-                    ? "border-amber-500 bg-amber-500/20"
-                    : "border-blue-400/50 bg-blue-400/10"
-                )}
-                style={{
-                  left: `${(region.bbox[0] / 800) * 100}%`,
-                  top: `${(region.bbox[1] / 1100) * 100}%`,
-                  width: `${((region.bbox[2] - region.bbox[0]) / 800) * 100}%`,
-                  height: `${((region.bbox[3] - region.bbox[1]) / 1100) * 100}%`,
-                }}
-              />
-            )
-          ))}
+      <div className="flex-1 overflow-auto p-4">
+        <div className="relative mx-auto" style={{ width: `${zoom * 100}%` }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={t("Page {n}", { n: current.page })} className="w-full h-auto shadow-md bg-white select-none" draggable={false} />
+          {current.width && current.height
+            ? pageBoxes.map((b) => {
+                const highlighted = b.key === highlightKey;
+                return (
+                  <div
+                    key={`${b.key}-${b.bbox.join(",")}`}
+                    title={b.label}
+                    className={cn("absolute border-2 pointer-events-none rounded-sm transition-colors", boxColor(b.confidence, highlighted))}
+                    style={{
+                      left: `${(b.bbox[0] / current.width!) * 100}%`,
+                      top: `${(b.bbox[1] / current.height!) * 100}%`,
+                      width: `${((b.bbox[2] - b.bbox[0]) / current.width!) * 100}%`,
+                      height: `${((b.bbox[3] - b.bbox[1]) / current.height!) * 100}%`,
+                    }}
+                  />
+                );
+              })
+            : null}
         </div>
       </div>
 
       {pages.length > 1 && (
-        <div className="flex gap-2 border-t border-slate-200 bg-white p-2 overflow-x-auto">
-          {pages.map((p, i) => (
+        <div className="flex gap-2 border-t border-[var(--gov-border-light)] bg-white p-2 overflow-x-auto">
+          {pages.map((p) => (
             <button
-              key={i}
-              onClick={() => setCurrentPage(i)}
+              key={p.page}
+              type="button"
+              onClick={() => setPage(p.page)}
               className={cn(
                 "flex-shrink-0 w-12 h-16 rounded border overflow-hidden",
-                i === currentPage ? "border-slate-800 ring-1 ring-slate-800" : "border-slate-200"
+                p.page === current.page ? "border-[var(--gov-navy)] ring-1 ring-[var(--gov-navy)]" : "border-[var(--gov-border-light)]"
               )}
+              aria-label={t("Page {n}", { n: p.page })}
             >
-              {p.processedImageUrl || p.imageUrl ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={p.processedImageUrl || p.imageUrl}
-                  alt={`Thumbnail ${i + 1}`}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-slate-100 text-[10px] flex items-center justify-center text-slate-400">
-                  {i + 1}
-                </div>
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.processedImageUrl || p.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
             </button>
           ))}
         </div>

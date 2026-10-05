@@ -1,49 +1,48 @@
-import { NextRequest } from "next/server";
-import { getSessionPayload } from "@/lib/auth";
-import { store, generateId } from "@/lib/store";
-import { hashPassword } from "@/lib/auth";
-import { apiSuccess, unauthorized, forbidden, apiError } from "@/lib/api-utils";
-import type { User } from "@/types";
+import { asc, eq } from "drizzle-orm";
+import { hashPassword, passwordProblem, requireUser } from "@/server/auth";
+import { appendAudit } from "@/server/audit";
+import { newId } from "@/server/crypto";
+import { getDb } from "@/server/db/client";
+import { users } from "@/server/db/schema";
+import { getUserRow, toUser } from "@/server/repo";
+import { fail, handle, ok } from "@/server/http";
+import { ROLE_PERMISSIONS } from "@/lib/config";
+import type { UserRole } from "@/types";
 
-export async function GET() {
-  const session = await getSessionPayload();
-  if (!session) return unauthorized();
-  if (session.role !== "ADMIN") return forbidden();
+export const GET = handle(async () => {
+  await requireUser("users");
+  const db = await getDb();
+  const rows = await db.select().from(users).orderBy(asc(users.createdAt));
+  return ok({ users: rows.map(toUser) });
+});
 
-  return apiSuccess({ users: store.users });
-}
-
-export async function POST(request: NextRequest) {
-  const session = await getSessionPayload();
-  if (!session) return unauthorized();
-  if (session.role !== "ADMIN") return forbidden();
-
-  try {
-    const body = await request.json();
-    const { email, name, role, password, district } = body;
-
-    if (!email || !name || !role || !password) {
-      return apiError("All fields are required");
-    }
-
-    if (store.users.find((u) => u.email === email)) {
-      return apiError("User already exists");
-    }
-
-    const user: User = {
-      id: generateId("U"),
-      email,
-      name,
-      role,
-      district,
-      createdAt: new Date().toISOString(),
-    };
-
-    const hash = await hashPassword(password);
-    store.addUser(user, hash);
-
-    return apiSuccess({ user });
-  } catch {
-    return apiError("Failed to create user", 500);
-  }
-}
+export const POST = handle(async (request: Request) => {
+  const admin = await requireUser("users");
+  const { email, name, role, password, district, phone } = await request.json();
+  if (!email?.trim() || !name?.trim() || !role || !password) return fail("Name, email, role and password are required");
+  if (!(role in ROLE_PERMISSIONS)) return fail("Unknown role");
+  const problem = passwordProblem(password);
+  if (problem) return fail(problem);
+  const normalized = String(email).trim().toLowerCase();
+  const db = await getDb();
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, normalized));
+  if (existing) return fail("A user with this email already exists", 409);
+  const id = newId("U");
+  await db.insert(users).values({
+    id,
+    email: normalized,
+    name: String(name).trim(),
+    role: role as UserRole,
+    district: district?.trim() || null,
+    phone: phone?.trim() || null,
+    passwordHash: await hashPassword(password),
+    notificationPrefs: { email: true, sms: false, inApp: true },
+  });
+  await appendAudit({
+    action: "USER_CREATED",
+    actor: admin.id,
+    actorName: admin.name,
+    details: `${normalized} as ${role}`,
+  });
+  return ok({ user: toUser((await getUserRow(id))!) });
+});

@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+.debug
+data
+services
+.env*
+*.log

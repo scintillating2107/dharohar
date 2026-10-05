@@ -1,205 +1,77 @@
-import { NextRequest } from "next/server";
-import { getSessionPayload } from "@/lib/auth";
-import { store, generateId } from "@/lib/store";
-import { persistRecord, persistParcel } from "@/lib/integrations/database";
-import { retryProcessingFromStep } from "@/lib/processing-pipeline";
-import { apiSuccess, unauthorized, notFound, apiError } from "@/lib/api-utils";
+import { eq, or } from "drizzle-orm";
+import { requireUser } from "@/server/auth";
+import { getDb } from "@/server/db/client";
+import { verificationTasks } from "@/server/db/schema";
+import { listAudit } from "@/server/audit";
+import { getSettings } from "@/server/settings";
+import { approveRecord, rejectRecord, saveDraft, sendBackRecord } from "@/server/records-service";
+import { getDocument, getOcr, getRecordRow, getRecordVersions, getParcelForRecord, toRecord, toTask } from "@/server/repo";
+import { fail, handle, ok } from "@/server/http";
+import { scheduleJobRun } from "@/server/kick";
+import type { Owner } from "@/types";
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSessionPayload();
-  if (!session) return unauthorized();
+export const maxDuration = 300;
 
-  const { id } = await params;
-  const task = store.verificationTasks.find((t) => t.id === id || t.recordId === id);
-  if (!task) return notFound("Verification task not found");
-
-  const record = store.getRecord(task.recordId);
-  const document = store.getDocument(task.documentId);
-  const auditEvents = store.auditEvents.filter(
-    (e) => e.recordId === task.recordId || e.documentId === task.documentId
-  );
-
-  return apiSuccess({ task, record, document, auditEvents });
+async function findTask(id: string) {
+  const db = await getDb();
+  const [task] = await db
+    .select()
+    .from(verificationTasks)
+    .where(or(eq(verificationTasks.id, id), eq(verificationTasks.recordId, id)));
+  return task;
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSessionPayload();
-  if (!session) return unauthorized();
+export const GET = handle(async (_request: Request, ctx: { params: Promise<{ id: string }> }) => {
+  await requireUser("verification");
+  const { id } = await ctx.params;
+  const task = await findTask(id);
+  if (!task) return fail("Verification task not found", 404);
+  const recordRow = await getRecordRow(task.recordId);
+  if (!recordRow) return fail("Record not found", 404);
+  const [document, ocr, audit, versions, parcel, settings] = await Promise.all([
+    getDocument(task.documentId),
+    getOcr(task.documentId),
+    listAudit({ recordId: task.recordId, documentId: task.documentId, limit: 200 }),
+    getRecordVersions(task.recordId),
+    getParcelForRecord(task.recordId),
+    getSettings(),
+  ]);
+  const aiVersion = [...versions].reverse().find((v) => v.created_by === "System");
+  return ok({
+    task: toTask(task, recordRow),
+    record: toRecord(recordRow, ocr),
+    document,
+    auditEvents: audit.items,
+    versions,
+    aiFields: aiVersion?.snapshot.fields ?? null,
+    parcel,
+    settings: { reviewThreshold: settings.reviewThreshold, makerChecker: settings.makerChecker },
+  });
+});
 
-  const { id } = await params;
-  const task = store.verificationTasks.find((t) => t.id === id || t.recordId === id);
-  if (!task) return notFound("Verification task not found");
-
+export const POST = handle(async (request: Request, ctx: { params: Promise<{ id: string }> }) => {
+  const user = await requireUser("verification");
+  const { id } = await ctx.params;
+  const task = await findTask(id);
+  if (!task) return fail("Verification task not found", 404);
   const body = await request.json();
-  const { action, fields, comment } = body;
-  const user = store.users.find((u) => u.id === session.userId);
-  const now = new Date().toISOString();
+  const fields = body.fields && typeof body.fields === "object" ? (body.fields as Record<string, string>) : undefined;
+  const owners = Array.isArray(body.owners) ? (body.owners as Owner[]) : undefined;
+  const comment = typeof body.comment === "string" ? body.comment.trim().slice(0, 2000) : undefined;
+  const actor = { id: user.id, name: user.name };
 
-  const record = store.getRecord(task.recordId);
-  if (!record) return notFound("Record not found");
-
-  if (fields) {
-    for (const [key, value] of Object.entries(fields)) {
-      const oldValue = record.fields[key]?.value;
-      if (oldValue !== value) {
-        store.addAuditEvent({
-          id: generateId("AE"),
-          documentId: task.documentId,
-          recordId: task.recordId,
-          timestamp: now,
-          actor: session.userId,
-          actorName: user?.name || "Unknown",
-          action: "FIELD_EDITED",
-          field: key,
-          oldValue,
-          newValue: value as string,
-        });
-
-        record.fields[key] = {
-          ...record.fields[key],
-          value: value as string,
-          confidence: 1.0,
-        };
-      }
-    }
-
-    record.owner_name = record.fields.owner_name?.value || record.owner_name;
-    record.khasra_number = record.fields.khasra_number?.value || record.khasra_number;
-    record.updatedAt = now;
-    store.updateRecord(task.recordId, record);
-  }
-
-  switch (action) {
+  switch (body.action) {
     case "save_draft":
-      store.updateVerificationTask(task.id, { status: "IN_REVIEW", updatedAt: now });
-      store.addAuditEvent({
-        id: generateId("AE"),
-        documentId: task.documentId,
-        recordId: task.recordId,
-        timestamp: now,
-        actor: session.userId,
-        actorName: user?.name || "Unknown",
-        action: "DRAFT_SAVED",
-      });
-      break;
-
+      return ok({ record: await saveDraft(task.recordId, { fields, owners, comment }, actor) });
     case "approve":
-      store.updateVerificationTask(task.id, { status: "APPROVED", updatedAt: now });
-      store.updateRecord(task.recordId, {
-        status: "VERIFIED",
-        verifiedAt: now,
-        verifiedBy: user?.name,
-        certification_hash: "4f8a21ce82cd9f3a7b2",
-        certified_at: now,
-      });
-      store.updateDocument(task.documentId, { status: "VERIFIED" });
-
-      const doc = store.getDocument(task.documentId);
-      if (doc) {
-        const steps = doc.steps.map((s) =>
-          s.key === "human_verification" || s.key === "final_storage"
-            ? { ...s, status: "completed" as const, completedAt: now }
-            : s
-        );
-        store.updateDocument(task.documentId, { steps, status: "VERIFIED" });
-      }
-
-      const parcel = store.getParcelByRecord(task.recordId);
-      if (parcel) {
-        store.updateParcelByRecord(task.recordId, { status: "VERIFIED" });
-      }
-
-      const approvedRecord = store.getRecord(task.recordId);
-      if (approvedRecord) {
-        await persistRecord(approvedRecord).catch(console.error);
-        const updatedParcel = store.getParcelByRecord(task.recordId);
-        if (updatedParcel) {
-          await persistParcel(updatedParcel).catch(console.error);
-        }
-
-        const finalSteps = store.getDocument(task.documentId)?.steps || [];
-        const completedSteps = finalSteps.map((s) =>
-          s.key === "final_storage"
-            ? { ...s, status: "completed" as const, completedAt: now }
-            : s
-        );
-        store.updateDocument(task.documentId, { steps: completedSteps });
-
-        store.addAuditEvent({
-          id: generateId("AE"),
-          documentId: task.documentId,
-          recordId: task.recordId,
-          timestamp: now,
-          actor: session.userId,
-          actorName: user?.name || "Unknown",
-          action: "RECORD_PERSISTED",
-          details: "Record and parcel persisted to database (Member 6 integration)",
-        });
-      }
-
-      store.addAuditEvent({
-        id: generateId("AE"),
-        documentId: task.documentId,
-        recordId: task.recordId,
-        timestamp: now,
-        actor: session.userId,
-        actorName: user?.name || "Unknown",
-        action: "RECORD_APPROVED",
-        details: comment,
-      });
-      store.addAuditEvent({
-        id: generateId("AE"),
-        documentId: task.documentId,
-        recordId: task.recordId,
-        timestamp: now,
-        actor: session.userId,
-        actorName: user?.name || "Unknown",
-        action: "CERTIFICATE_GENERATED",
-        details: "Immutable certification hash anchored (demo)",
-      });
-      break;
-
+      return ok({ record: await approveRecord(task.recordId, { fields, owners, comment }, actor) });
     case "reject":
-      store.updateVerificationTask(task.id, { status: "REJECTED", updatedAt: now, comments: comment });
-      store.updateRecord(task.recordId, { status: "REJECTED" });
-      store.updateDocument(task.documentId, { status: "REJECTED" });
-      store.addAuditEvent({
-        id: generateId("AE"),
-        documentId: task.documentId,
-        recordId: task.recordId,
-        timestamp: now,
-        actor: session.userId,
-        actorName: user?.name || "Unknown",
-        action: "RECORD_REJECTED",
-        details: comment,
-      });
-      break;
-
+      return ok({ record: await rejectRecord(task.recordId, comment ?? "", actor) });
     case "send_back":
-      store.updateVerificationTask(task.id, { status: "SENT_BACK", updatedAt: now, comments: comment });
-      store.updateDocument(task.documentId, { status: "UPLOADED" });
-      store.addAuditEvent({
-        id: generateId("AE"),
-        documentId: task.documentId,
-        recordId: task.recordId,
-        timestamp: now,
-        actor: session.userId,
-        actorName: user?.name || "Unknown",
-        action: "RECORD_SENT_BACK",
-        details: comment,
-      });
-      retryProcessingFromStep(task.documentId).catch(console.error);
-      break;
-
+      await sendBackRecord(task.recordId, comment ?? "", actor);
+      scheduleJobRun();
+      return ok({ queued: true });
     default:
-      return apiError("Invalid action");
+      return fail("Invalid action");
   }
-
-  return apiSuccess({ task, record: store.getRecord(task.recordId) });
-}
+});

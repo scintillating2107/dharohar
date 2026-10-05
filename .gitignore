@@ -59,3 +59,12 @@ next-env.d.ts
 # member 6 local sqlite / file storage
 /services/member6-database/dharohar.db
 /services/member6-database/storage/
+
+# embedded PostgreSQL (PGlite), OCR model cache, local document storage
+/data/pgdata/
+/data/tesseract-cache/
+/data/uploads/
+# local debugging scratch
+/.debug/
+# local env files with secrets
+.env*.local

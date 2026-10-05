@@ -1,113 +1,122 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Field } from "@/components/ui/Field";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useLocale } from "@/contexts/LocaleContext";
-import { formatRole } from "@/lib/utils";
-import { loadAiSettings, saveAiSettings } from "@/lib/ai-settings";
+import { apiPost } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
+import type { NotificationPrefs } from "@/types";
+
+async function patchMe(body: Record<string, unknown>) {
+  const res = await fetch("/api/auth/me", {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) throw new Error(json.error || "Could not save");
+}
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const { toast } = useToast();
-  const { locale, setLocale } = useLocale();
-  const [autoApprove, setAutoApprove] = useState(95);
-  const [humanReview, setHumanReview] = useState(70);
-  const [emailNotif, setEmailNotif] = useState(true);
-  const [smsNotif, setSmsNotif] = useState(false);
-  const [inAppNotif, setInAppNotif] = useState(true);
+  const { locale, setLocale, t } = useLocale();
+  const [prefs, setPrefs] = useState<NotificationPrefs>(user?.notificationPrefs ?? { email: true, sms: false, inApp: true });
+  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [pw, setPw] = useState({ currentPassword: "", newPassword: "", confirm: "" });
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const s = loadAiSettings();
-    setAutoApprove(s.autoApprovePercent);
-    setHumanReview(s.humanReviewLowPercent);
-  }, []);
+  const savePrefs = async () => {
+    setSaving(true);
+    try {
+      await patchMe({ notificationPrefs: prefs, phone });
+      await refresh();
+      toast("Preferences saved", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Could not save", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  const persist = () => {
-    saveAiSettings({
-      autoApprovePercent: autoApprove,
-      humanReviewLowPercent: humanReview,
-    });
-    toast("Settings saved", "success");
+  const changePassword = async () => {
+    if (pw.newPassword !== pw.confirm) {
+      toast("New passwords do not match", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      await apiPost("/api/auth/password", { currentPassword: pw.currentPassword, newPassword: pw.newPassword });
+      setPw({ currentPassword: "", newPassword: "", confirm: "" });
+      toast("Password changed", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Could not change password", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <AppLayout title="Settings">
+    <AppLayout title="My settings">
       <div className="max-w-2xl space-y-6">
-        <Card title="AI thresholds">
-          <p className="text-xs text-[var(--gov-text-muted)] mb-4">
-            Confidence bands for badges and review queues — stored in this browser.
-          </p>
-          <div className="space-y-4 text-sm">
-            <label className="block">
-              <span className="font-medium text-[var(--gov-navy)]">Auto approve (≥ %)</span>
-              <input
-                type="number"
-                value={autoApprove}
-                onChange={(e) => setAutoApprove(Number(e.target.value))}
-                className="mt-1 w-full rounded-md border border-[var(--gov-border)] px-3 py-2"
-              />
-            </label>
-            <label className="block">
-              <span className="font-medium text-[var(--gov-navy)]">Human review band (low %)</span>
-              <input
-                type="number"
-                value={humanReview}
-                onChange={(e) => setHumanReview(Number(e.target.value))}
-                className="mt-1 w-full rounded-md border border-[var(--gov-border)] px-3 py-2"
-              />
-              <p className="text-xs text-[var(--gov-text-muted)] mt-1">
-                Review: {humanReview}–{autoApprove - 1}% · Critical: &lt;{humanReview}%
-              </p>
-            </label>
+        <Card title="Notifications">
+          <div className="space-y-3 text-sm">
+            {(
+              [
+                ["inApp", "In-app notifications"],
+                ["email", t("Email to {email}", { email: user?.email ?? "" })],
+                ["sms", "SMS (requires a mobile number)"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2">
+                <input type="checkbox" checked={prefs[key]} onChange={(e) => setPrefs({ ...prefs, [key]: e.target.checked })} />
+                {t(label)}
+              </label>
+            ))}
+            <Field label="Mobile number">
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98xxxxxxxx" />
+            </Field>
+            <p className="text-xs text-[var(--gov-text-muted)]">{t("Email and SMS are delivered when the administrator has configured a mail server / SMS gateway.")}</p>
+            <Button onClick={savePrefs} loading={saving}>{t("Save preferences")}</Button>
           </div>
         </Card>
 
         <Card title="Language">
-          <div className="flex flex-wrap gap-2 text-sm">
-            <button
-              type="button"
-              onClick={() => setLocale("en")}
-              className={`rounded-full border px-3 py-1 ${locale === "en" ? "bg-[var(--gov-navy)] text-white border-[var(--gov-navy)]" : "border-[var(--gov-border)] bg-white"}`}
-            >
-              English
-            </button>
-            <button
-              type="button"
-              onClick={() => setLocale("hi")}
-              className={`rounded-full border px-3 py-1 ${locale === "hi" ? "bg-[var(--gov-navy)] text-white border-[var(--gov-navy)]" : "border-[var(--gov-border)] bg-white"}`}
-            >
-              हिन्दी
-            </button>
-          </div>
-        </Card>
-
-        <Card title="Notifications">
-          <div className="space-y-3 text-sm">
-            {[
-              { label: "Email", checked: emailNotif, set: setEmailNotif },
-              { label: "SMS", checked: smsNotif, set: setSmsNotif },
-              { label: "In-app", checked: inAppNotif, set: setInAppNotif },
-            ].map(({ label, checked, set }) => (
-              <label key={label} className="flex items-center gap-2">
-                <input type="checkbox" checked={checked} onChange={(e) => set(e.target.checked)} />
-                {label}
-              </label>
+          <div className="flex gap-2 text-sm">
+            {(["en", "hi"] as const).map((l) => (
+              <button
+                key={l}
+                type="button"
+                aria-pressed={locale === l}
+                onClick={() => setLocale(l)}
+                className={cn(
+                  "rounded-full border px-3 py-1",
+                  locale === l ? "bg-[var(--gov-navy)] text-white border-[var(--gov-navy)]" : "border-[var(--gov-border)] bg-white"
+                )}
+              >
+                {l === "en" ? "English" : "हिन्दी"}
+              </button>
             ))}
           </div>
         </Card>
 
-        <Card title="Profile">
-          <dl className="text-sm space-y-2">
-            <div><dt className="text-[var(--gov-text-muted)]">Name</dt><dd className="font-medium">{user?.name}</dd></div>
-            <div><dt className="text-[var(--gov-text-muted)]">Role</dt><dd>{user ? formatRole(user.role) : "—"}</dd></div>
-          </dl>
+        <Card title="Change password">
+          <div className="grid gap-3 max-w-sm">
+            <Field label="Current password"><Input type="password" value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} /></Field>
+            <Field label="New password" hint="At least 8 characters with letters and numbers">
+              <Input type="password" value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} />
+            </Field>
+            <Field label="Confirm new password"><Input type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} /></Field>
+            <Button onClick={changePassword} loading={saving} disabled={!pw.currentPassword || !pw.newPassword}>{t("Change password")}</Button>
+          </div>
         </Card>
-
-        <Button onClick={persist}>Save preferences</Button>
       </div>
     </AppLayout>
   );

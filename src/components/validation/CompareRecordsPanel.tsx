@@ -2,176 +2,131 @@
 
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { cn } from "@/lib/utils";
-import { AlertTriangle, Check, Info } from "lucide-react";
-import type { LandRecord } from "@/types";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Field";
+import { LoadingState } from "@/components/ui/States";
+import { useApi } from "@/lib/use-api";
+import { FIELD_SECTIONS } from "@/lib/config";
+import { cn, getFieldLabel } from "@/lib/utils";
+import type { LandRecord, RecordVersion } from "@/types";
+import { AlertTriangle, Check } from "lucide-react";
+import { useLocale } from "@/contexts/LocaleContext";
 
-type RowResult = "match" | "warn" | "info";
-
-interface CompareRow {
-  field: string;
-  older: string;
-  newer: string;
-  result: RowResult;
+interface Detail {
+  record: LandRecord;
+  versions: RecordVersion[];
 }
 
-const DEMO_ROWS: CompareRow[] = [
-  { field: "Owner", older: "Ram Singh", newer: "Ram Singh", result: "match" },
-  { field: "Khasra", older: "235/1", newer: "235/1", result: "match" },
-  { field: "Area", older: "2.40 ha", newer: "1.80 ha", result: "warn" },
-  { field: "Mutation", older: "—", newer: "M-2024-123", result: "info" },
-  { field: "Classification", older: "Agricultural", newer: "Agricultural", result: "match" },
-];
+type Side = { label: string; fields: LandRecord["fields"] };
 
-function ResultIcon({ result }: { result: RowResult }) {
-  if (result === "match") return <Check className="h-4 w-4 text-[var(--gov-green)]" />;
-  if (result === "warn") return <AlertTriangle className="h-4 w-4 text-amber-600" />;
-  return <Info className="h-4 w-4 text-[var(--gov-navy-light)]" />;
+function norm(v: string | undefined) {
+  return (v ?? "").trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-function rowsFromRecord(record: LandRecord): CompareRow[] {
-  const warnings = record.validation?.warnings ?? [];
-  const areaWarn = warnings.find((w) => w.type === "HISTORICAL_MISMATCH" || w.field === "area");
-  const mutation = record.fields.mutation_number?.value;
+/**
+ * Field-by-field comparison of a record against one of its own earlier versions or another
+ * record (e.g. the historical / duplicate record flagged by validation).
+ */
+export function CompareRecordsPanel({ recordId }: { recordId: string }) {
+  const { t, tx } = useLocale();
+  const { data, initialLoading } = useApi<Detail>(`/api/records/${recordId}`);
+  const related = useMemo(() => {
+    const ids = new Set<string>();
+    for (const w of data?.record.validation?.warnings ?? []) if (w.related_record_id?.startsWith("LR-")) ids.add(w.related_record_id);
+    if (data?.record.validation?.duplicate.record_id) ids.add(data.record.validation.duplicate.record_id);
+    return [...ids];
+  }, [data]);
+  const [target, setTarget] = useState<string>("");
+  const [otherId, setOtherId] = useState("");
+  const effective = target || (related[0] ? `record:${related[0]}` : data?.versions.length ? `version:${data.versions[0].version}` : "");
+  const otherRecordId = effective.startsWith("record:") ? effective.slice(7) : null;
+  const other = useApi<Detail>(otherRecordId ? `/api/records/${otherRecordId}` : null);
 
-  const olderArea = areaWarn?.previous_value ?? "2.40 ha";
-  const newerArea = areaWarn?.current_value ?? `${record.fields.area?.value ?? "—"} ${record.fields.area?.unit ?? "ha"}`.trim();
+  if (initialLoading) return <LoadingState />;
+  if (!data) return <p className="text-sm text-red-700">{t("Record not found.")}</p>;
 
-  return [
-    {
-      field: "Owner",
-      older: record.owner_name,
-      newer: record.owner_name,
-      result: "match",
-    },
-    {
-      field: "Khasra",
-      older: record.khasra_number,
-      newer: record.khasra_number,
-      result: "match",
-    },
-    {
-      field: "Area",
-      older: olderArea,
-      newer: newerArea,
-      result: areaWarn ? "warn" : "match",
-    },
-    {
-      field: "Mutation",
-      older: "—",
-      newer: mutation || "—",
-      result: mutation ? "info" : "match",
-    },
-    {
-      field: "Classification",
-      older: record.fields.land_type?.value ?? "—",
-      newer: record.fields.land_type?.value ?? "—",
-      result: "match",
-    },
-  ];
-}
-
-function areaChangeBanner(rows: CompareRow[], newerYear: string, olderYear: string) {
-  const area = rows.find((r) => r.field === "Area");
-  if (!area || area.result !== "warn") return null;
-
-  const parseHa = (s: string) => {
-    const m = s.match(/([\d.]+)/);
-    return m ? parseFloat(m[1]) : NaN;
-  };
-  const oldHa = parseHa(area.older);
-  const newHa = parseHa(area.newer);
-  if (Number.isNaN(oldHa) || Number.isNaN(newHa)) {
-    return (
-      <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-6 py-5">
-        <p className="text-sm font-bold uppercase tracking-wide text-amber-900">Change detected</p>
-        <p className="text-lg font-semibold text-amber-950 mt-1">Area differs from historical record</p>
-        <p className="text-sm text-amber-800 mt-2">
-          Compare against mutation {newerYear} register and prior khatauni ({olderYear}) before approval.
-        </p>
-      </div>
-    );
+  const current: Side = { label: `${data.record.record_id} (${t("current v{n}", { n: data.record.version ?? 1 })})`, fields: data.record.fields };
+  let compare: Side | null = null;
+  if (effective.startsWith("version:")) {
+    const v = data.versions.find((x) => String(x.version) === effective.slice(8));
+    if (v?.snapshot.fields) compare = { label: `${t("Version {n}", { n: v.version })} — ${tx(v.reason)}`, fields: v.snapshot.fields };
+  } else if (other.data) {
+    compare = { label: `${other.data.record.record_id} (${t(other.data.record.status.charAt(0) + other.data.record.status.slice(1).toLowerCase().replace(/_/g, " "))})`, fields: other.data.record.fields };
   }
-  const diff = Math.abs(oldHa - newHa);
-  const direction = newHa < oldHa ? "decreased" : "increased";
+
+  const keys = Object.values(FIELD_SECTIONS).flat();
+  const diffs = compare ? keys.filter((k) => norm(current.fields[k]?.value) !== norm(compare!.fields[k]?.value)).length : 0;
 
   return (
-    <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-6 py-5">
-      <p className="text-sm font-bold uppercase tracking-wide text-amber-900">Change detected</p>
-      <p className="text-lg font-semibold text-amber-950 mt-1">
-        Area {direction} by {diff.toFixed(2)} ha
-      </p>
-      <p className="text-sm text-amber-800 mt-2">
-        Compare against mutation {newerYear} register entry and prior khatauni ({olderYear}) before approval.
-      </p>
-    </div>
-  );
-}
-
-export function CompareRecordsPanel({ record }: { record?: LandRecord }) {
-  const [olderYear, setOlderYear] = useState(record?.record_year ? String(record.record_year - 28) : "1998");
-  const [newerYear, setNewerYear] = useState(
-    record?.record_year ? String(record.record_year) : "2026"
-  );
-
-  const rows = useMemo(() => (record ? rowsFromRecord(record) : DEMO_ROWS), [record]);
-  const banner = areaChangeBanner(rows, newerYear, olderYear);
-
-  return (
-    <div className="space-y-6">
-      <Card title="Compare land records">
-        <div className="grid sm:grid-cols-2 gap-4 mb-6">
-          <label className="text-sm">
-            <span className="text-xs font-semibold uppercase text-[var(--gov-text-muted)]">Older record</span>
-            <select
-              value={olderYear}
-              onChange={(e) => setOlderYear(e.target.value)}
-              className="mt-1 w-full rounded-md border border-[var(--gov-border)] px-3 py-2 text-sm"
-            >
-              {["1998", "2004", "2012"].map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm">
-            <span className="text-xs font-semibold uppercase text-[var(--gov-text-muted)]">Newer record</span>
-            <select
-              value={newerYear}
-              onChange={(e) => setNewerYear(e.target.value)}
-              className="mt-1 w-full rounded-md border border-[var(--gov-border)] px-3 py-2 text-sm"
-            >
-              {["2024", "2025", "2026"].map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-[var(--gov-text-muted)] border-b border-[var(--gov-border-light)]">
-                <th className="py-2 pr-4">Field</th>
-                <th className="py-2 pr-4">{olderYear}</th>
-                <th className="py-2 pr-4">{newerYear}</th>
-                <th className="py-2 w-16">Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.field} className="border-b border-[var(--gov-border-light)] last:border-0">
-                  <td className="py-3 font-medium text-[var(--gov-navy)]">{row.field}</td>
-                  <td className="py-3 text-[var(--gov-text-muted)]">{row.older}</td>
-                  <td className={cn("py-3", row.result === "warn" && "font-semibold text-amber-800")}>{row.newer}</td>
-                  <td className="py-3"><ResultIcon result={row.result} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="space-y-4">
+      <Card title="Compare with">
+        <div className="flex flex-wrap gap-2 items-center">
+          <Select className="max-w-md" value={effective} onChange={(e) => setTarget(e.target.value)}>
+            <option value="">{t("Choose…")}</option>
+            {related.length > 0 && (
+              <optgroup label={t("Related records (from validation)")}>
+                {related.map((r) => <option key={r} value={`record:${r}`}>{r}</option>)}
+              </optgroup>
+            )}
+            {data.versions.length > 0 && (
+              <optgroup label={t("Earlier versions of this record")}>
+                {data.versions.map((v) => <option key={v.id} value={`version:${v.version}`}>v{v.version} — {tx(v.reason)}</option>)}
+              </optgroup>
+            )}
+            {otherRecordId && !related.includes(otherRecordId) && <option value={`record:${otherRecordId}`}>{otherRecordId}</option>}
+          </Select>
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (otherId.trim()) setTarget(`record:${otherId.trim()}`);
+            }}
+          >
+            <Input className="max-w-[200px]" placeholder={t("Other record ID")} value={otherId} onChange={(e) => setOtherId(e.target.value)} />
+            <Button type="submit" variant="outline" size="sm">{t("Compare")}</Button>
+          </form>
         </div>
       </Card>
 
-      {banner}
+      {compare ? (
+        <Card title={t("{n} difference(s)", { n: diffs })}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-[var(--gov-text-muted)]">
+                  <th className="py-2 pr-3">{t("Field")}</th>
+                  <th className="py-2 pr-3">{compare.label}</th>
+                  <th className="py-2 pr-3">{current.label}</th>
+                  <th className="py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {keys.map((k) => {
+                  const a = compare!.fields[k];
+                  const b = current.fields[k];
+                  if (!a && !b) return null;
+                  const same = norm(a?.value) === norm(b?.value) && norm(a?.unit) === norm(b?.unit);
+                  return (
+                    <tr key={k} className={cn("border-t border-[var(--gov-border-light)]", !same && "bg-amber-50/70")}>
+                      <td className="py-2 pr-3 text-[var(--gov-text-muted)]">{t(getFieldLabel(k))}</td>
+                      <td className="py-2 pr-3">{a ? `${a.value}${a.unit ? ` ${t(a.unit)}` : ""}` : "—"}</td>
+                      <td className="py-2 pr-3 font-medium">{b ? `${b.value}${b.unit ? ` ${t(b.unit)}` : ""}` : "—"}</td>
+                      <td className="py-2">{same ? <Check className="h-4 w-4 text-[var(--gov-green)]" /> : <AlertTriangle className="h-4 w-4 text-amber-600" />}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ) : otherRecordId && other.initialLoading ? (
+        <LoadingState />
+      ) : otherRecordId && other.error ? (
+        <p className="text-sm text-red-700">{tx(other.error)}</p>
+      ) : (
+        <p className="text-sm text-[var(--gov-text-muted)]">{t("Choose a version or record to compare.")}</p>
+      )}
     </div>
   );
 }

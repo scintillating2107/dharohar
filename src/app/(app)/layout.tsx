@@ -1,7 +1,6 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { LoadingState } from "@/components/ui/States";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -19,7 +18,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingState message="Loading..." />
+        <LoadingState message="Loading…" />
       </div>
     );
   }

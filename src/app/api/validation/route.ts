@@ -1,24 +1,14 @@
-import { NextRequest } from "next/server";
-import { getSessionPayload } from "@/lib/auth";
-import { store } from "@/lib/store";
-import { apiSuccess, unauthorized, notFound } from "@/lib/api-utils";
+import { requireUser } from "@/server/auth";
+import { getRecordByDocument, getRecordRow, toRecord } from "@/server/repo";
+import { fail, handle, ok } from "@/server/http";
 
-export async function GET(request: NextRequest) {
-  const session = await getSessionPayload();
-  if (!session) return unauthorized();
-
-  const { searchParams } = new URL(request.url);
-  const documentId = searchParams.get("documentId");
-  const recordId = searchParams.get("recordId");
-
-  let record;
-  if (recordId) {
-    record = store.getRecord(recordId);
-  } else if (documentId) {
-    record = store.records.find((r) => r.document_id === documentId);
-  }
-
-  if (!record?.validation) return notFound("Validation result not found");
-
-  return apiSuccess({ validation: record.validation, record });
-}
+/** Validation result for one record (by recordId or documentId). Lists use /api/records?validationStatus=… */
+export const GET = handle(async (request: Request) => {
+  await requireUser("validation");
+  const url = new URL(request.url);
+  const recordId = url.searchParams.get("recordId");
+  const documentId = url.searchParams.get("documentId");
+  const row = recordId ? await getRecordRow(recordId) : documentId ? await getRecordByDocument(documentId) : undefined;
+  if (!row?.validation) return fail("Validation result not found", 404);
+  return ok({ validation: row.validation, record: toRecord(row) });
+});

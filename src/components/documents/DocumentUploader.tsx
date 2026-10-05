@@ -1,157 +1,116 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Upload, FileText, X } from "lucide-react";
 import { cn, formatFileSize } from "@/lib/utils";
 import { ALLOWED_FILE_EXTENSIONS, MAX_FILE_SIZE_MB } from "@/lib/config";
-import { Button } from "@/components/ui/Button";
+import { useLocale } from "@/contexts/LocaleContext";
 
-interface DocumentUploaderProps {
-  onUpload: (
-    file: File,
-    onProgress?: (progress: number) => void,
-    signal?: AbortSignal
-  ) => Promise<void>;
-  loading?: boolean;
-  /** When true, selecting a file only notifies the parent (metadata step before upload). */
-  selectOnly?: boolean;
-  onFileSelected?: (file: File) => void;
-}
-
-export function DocumentUploader({ onUpload, loading, selectOnly, onFileSelected }: DocumentUploaderProps) {
+/** File picker with drag & drop. Validates type and size before the file reaches the form. */
+export function DocumentUploader({
+  file,
+  onFileChange,
+  disabled,
+  progress,
+}: {
+  file: File | null;
+  onFileChange: (file: File | null) => void;
+  disabled?: boolean;
+  /** Upload progress 0–100 while submitting */
+  progress?: number;
+}) {
+  const { t } = useLocale();
   const [dragActive, setDragActive] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
-  const abortRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const validateFile = (file: File): string | null => {
-    const ext = "." + file.name.split(".").pop()?.toLowerCase();
+  const accept = (f: File) => {
+    const ext = "." + (f.name.split(".").pop() ?? "").toLowerCase();
     if (!ALLOWED_FILE_EXTENSIONS.includes(ext)) {
-      return "Invalid file type. Allowed: PDF, JPG, JPEG, PNG";
+      setError(t("Unsupported file type. Use PDF, JPG, PNG or TIFF."));
+      return;
     }
-    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      return `File size exceeds ${MAX_FILE_SIZE_MB}MB limit`;
-    }
-    return null;
-  };
-
-  const handleFile = (file: File) => {
-    const err = validateFile(file);
-    if (err) {
-      setError(err);
-      setSelectedFile(null);
+    if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      setError(t("File is larger than {n} MB.", { n: MAX_FILE_SIZE_MB }));
       return;
     }
     setError(null);
-    setProgress(0);
-    setSelectedFile(file);
-    onFileSelected?.(file);
-  };
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  }, []);
-
-  const handleUpload = async () => {
-    if (!selectedFile) return;
-    setProgress(0);
-    abortRef.current = new AbortController();
-    try {
-      await onUpload(selectedFile, setProgress, abortRef.current.signal);
-    } finally {
-      abortRef.current = null;
-    }
-  };
-
-  const cancelUpload = () => {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setProgress(0);
+    onFileChange(f);
   };
 
   return (
-    <div className="space-y-4">
-      <div
-        onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={handleDrop}
-        className={cn(
-          "relative rounded-lg border-2 border-dashed p-12 text-center transition-all duration-200",
-          dragActive
-            ? "border-[var(--gov-navy-light)] bg-blue-50/50"
-            : "border-[var(--gov-border)] bg-white hover:border-[var(--gov-navy-light)]/50",
-          error && "border-red-300 bg-red-50/30"
-        )}
-      >
-        <Upload className="mx-auto h-10 w-10 text-[var(--gov-navy-light)]" />
-        <p className="mt-4 text-sm font-semibold text-[var(--gov-navy)]">
-          Drag and drop your land record document here
-        </p>
-        <p className="mt-1 text-xs text-[var(--gov-text-muted)]">
-          PDF, JPG, JPEG, PNG — Max {MAX_FILE_SIZE_MB}MB
-        </p>
-        <label className="mt-4 inline-block">
-          <span className="cursor-pointer rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
-            Browse Files
-          </span>
+    <div className="space-y-3">
+      {!file && (
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!disabled) setDragActive(true);
+          }}
+          onDragLeave={() => setDragActive(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragActive(false);
+            const f = e.dataTransfer.files[0];
+            if (f && !disabled) accept(f);
+          }}
+          className={cn(
+            "rounded-lg border-2 border-dashed px-6 py-10 sm:py-12 text-center transition-colors",
+            dragActive ? "border-[var(--gov-navy-light)] bg-blue-50/50" : "border-[var(--gov-border)] bg-white",
+            error && "border-red-300 bg-red-50/30"
+          )}
+        >
+          <Upload className="mx-auto h-10 w-10 text-[var(--gov-navy-light)]" aria-hidden="true" />
+          <p className="mt-4 text-sm font-semibold text-[var(--gov-navy)]">{t("Drag and drop the scanned land record here")}</p>
+          <p className="mt-1 text-xs text-[var(--gov-text-muted)]">{t("PDF, JPG, PNG or TIFF — up to {n} MB", { n: MAX_FILE_SIZE_MB })}</p>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => inputRef.current?.click()}
+            className="mt-4 rounded-md bg-[var(--gov-navy)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--gov-navy-light)] disabled:opacity-50"
+          >
+            {t("Choose file")}
+          </button>
           <input
+            ref={inputRef}
             type="file"
-            className="hidden"
-            accept=".pdf,.jpg,.jpeg,.png"
+            className="sr-only"
+            accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff"
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFile(file);
+              const f = e.target.files?.[0];
+              if (f) accept(f);
+              e.target.value = "";
             }}
           />
-        </label>
-      </div>
-
-      {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
-
-      {selectedFile && (
-        <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-          <FileText className="h-8 w-8 text-slate-500" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-800 truncate">{selectedFile.name}</p>
-            <p className="text-xs text-slate-500">{formatFileSize(selectedFile.size)}</p>
-            {(loading || progress > 0) && (
-              <div className="mt-2">
-                <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
-                  <div
-                    className="h-full bg-slate-700 transition-all duration-300"
-                    style={{ width: `${loading && progress === 0 ? 30 : progress}%` }}
-                  />
-                </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  {progress >= 100 ? "Processing..." : progress > 0 ? `${progress}% uploaded` : "Uploading..."}
-                </p>
-              </div>
-            )}
-          </div>
-          {!loading ? (
-            <button
-              onClick={() => { setSelectedFile(null); setProgress(0); }}
-              className="rounded p-1 hover:bg-slate-200"
-              aria-label="Remove file"
-            >
-              <X className="h-4 w-4 text-slate-500" />
-            </button>
-          ) : (
-            <Button variant="outline" size="sm" onClick={cancelUpload}>
-              Cancel
-            </Button>
-          )}
         </div>
       )}
 
-      {selectedFile && !loading && !selectOnly && (
-        <Button onClick={handleUpload} className="w-full">
-          Upload Document
-        </Button>
+      {error && (
+        <p className="text-sm text-red-700" role="alert">
+          {error}
+        </p>
+      )}
+
+      {file && (
+        <div className="flex items-center gap-3 rounded-lg border border-[var(--gov-border-light)] bg-[var(--gov-bg-subtle)] p-4">
+          <FileText className="h-8 w-8 text-[var(--gov-navy-light)] flex-shrink-0" aria-hidden="true" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-[var(--gov-navy)] truncate">{file.name}</p>
+            <p className="text-xs text-[var(--gov-text-muted)]">{formatFileSize(file.size)}</p>
+            {progress !== undefined && progress > 0 && (
+              <div className="mt-2" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+                <div className="h-1.5 w-full rounded-full bg-[var(--gov-border-light)] overflow-hidden">
+                  <div className="h-full bg-[var(--gov-navy)] transition-all duration-300" style={{ width: `${progress}%` }} />
+                </div>
+                <p className="text-xs text-[var(--gov-text-muted)] mt-1">{progress >= 100 ? t("Saving…") : t("{n}% uploaded", { n: progress })}</p>
+              </div>
+            )}
+          </div>
+          {!disabled && (
+            <button type="button" onClick={() => onFileChange(null)} className="rounded p-1 hover:bg-white" aria-label={t("Remove file")}>
+              <X className="h-4 w-4 text-[var(--gov-text-muted)]" />
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

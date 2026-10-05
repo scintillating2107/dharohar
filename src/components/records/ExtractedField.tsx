@@ -1,6 +1,6 @@
 "use client";
 
-import { cn, formatConfidence, getConfidenceLevel, getFieldLabel } from "@/lib/utils";
+import { cn, getConfidenceLevel, getFieldLabel } from "@/lib/utils";
 import type { ExtractedFieldValue } from "@/types";
 import { ConfidenceBadge } from "@/components/ui/StatusBadges";
 import { Input } from "@/components/ui/Input";

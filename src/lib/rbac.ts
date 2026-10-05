@@ -1,30 +1,32 @@
 import type { UserRole } from "@/types";
-import { ROLE_PERMISSIONS } from "./config";
+import { hasPermission, type Permission } from "./config";
 
-/** Maps URL prefixes to required permission keys */
-export const ROUTE_PERMISSION_MAP: Record<string, string> = {
+/** Page URL prefixes → required permission (longest prefix wins). */
+export const ROUTE_PERMISSION_MAP: Record<string, Permission> = {
   "/citizen": "citizen",
   "/dashboard": "dashboard",
+  "/documents/upload": "upload",
   "/documents": "documents",
   "/verification": "verification",
   "/records": "records",
   "/validation": "validation",
+  "/compare": "validation",
   "/gis": "gis",
   "/audit": "audit",
-  "/users": "users",
-  "/profile": "profile",
-  "/about": "profile",
-  "/ai-process": "documents",
   "/trust": "audit",
-  "/demo": "dashboard",
-  "/demo/workflow": "dashboard",
-  "/analytics": "dashboard",
+  "/users": "users",
+  "/admin": "settings_admin",
+  "/integrations": "integrations",
+  "/analytics": "analytics",
+  "/claims": "claims",
+  "/profile": "profile",
   "/settings": "profile",
-  "/compare": "validation",
-  "/trust/verify": "audit",
+  "/about": "profile",
+  "/showcase": "documents",
 };
 
-export const API_PERMISSION_MAP: Record<string, string> = {
+/** API prefixes → required permission. Route handlers re-check with requireUser(). */
+export const API_PERMISSION_MAP: Record<string, Permission> = {
   "/api/documents": "documents",
   "/api/verification": "verification",
   "/api/records": "records",
@@ -33,26 +35,26 @@ export const API_PERMISSION_MAP: Record<string, string> = {
   "/api/audit": "audit",
   "/api/users": "users",
   "/api/dashboard": "dashboard",
+  "/api/analytics": "analytics",
   "/api/citizen": "citizen",
-  "/api/notifications": "dashboard",
-  "/api/integrations": "dashboard",
+  "/api/claims": "profile",
+  "/api/admin": "settings_admin",
+  "/api/integrations": "integrations",
+  "/api/notifications": "profile",
+  "/api/meta": "profile",
+  "/api/learning": "analytics",
 };
 
-export function getRequiredPermission(pathname: string): string | null {
-  const maps = pathname.startsWith("/api/") ? API_PERMISSION_MAP : ROUTE_PERMISSION_MAP;
-  const sorted = Object.keys(maps).sort((a, b) => b.length - a.length);
-  for (const route of sorted) {
-    if (pathname.startsWith(route)) return maps[route];
-  }
-  return null;
+export function getRequiredPermission(pathname: string): Permission | null {
+  const map = pathname.startsWith("/api/") ? API_PERMISSION_MAP : ROUTE_PERMISSION_MAP;
+  const prefix = Object.keys(map)
+    .sort((a, b) => b.length - a.length)
+    .find((route) => pathname === route || pathname.startsWith(`${route}/`));
+  return prefix ? map[prefix] : null;
 }
 
 export function roleCanAccess(role: UserRole, pathname: string): boolean {
   const permission = getRequiredPermission(pathname);
   if (!permission) return true;
-  return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
-}
-
-export function assertRoleAccess(role: UserRole, pathname: string): boolean {
-  return roleCanAccess(role, pathname);
+  return hasPermission(role, permission);
 }

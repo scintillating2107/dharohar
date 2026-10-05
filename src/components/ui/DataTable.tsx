@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoadingState, EmptyState } from "@/components/ui/States";
+import { useLocale } from "@/contexts/LocaleContext";
 
 interface Column<T> {
   key: string;
@@ -33,6 +34,7 @@ export function DataTable<T>({
   onRowClick,
   keyField,
 }: DataTableProps<T>) {
+  const { t } = useLocale();
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -82,7 +84,7 @@ export function DataTable<T>({
                       className="inline-flex items-center gap-1 hover:text-[var(--gov-navy)]"
                       onClick={() => toggleSort(col.key)}
                     >
-                      {col.header}
+                      {t(col.header)}
                       {sortKey === col.key ? (
                         sortDir === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
                       ) : (
@@ -90,7 +92,7 @@ export function DataTable<T>({
                       )}
                     </button>
                   ) : (
-                    col.header
+                    t(col.header)
                   )}
                 </th>
               ))}
@@ -101,7 +103,14 @@ export function DataTable<T>({
               <tr
                 key={String(item[keyField])}
                 onClick={() => onRowClick?.(item)}
-                className={cn("transition-colors duration-100", onRowClick && "cursor-pointer")}
+                className={cn("transition-colors duration-100", onRowClick && "cursor-pointer hover:bg-[var(--gov-bg-subtle)] focus-visible:bg-[var(--gov-bg-subtle)] outline-none")}
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={(e) => {
+                  if (onRowClick && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    onRowClick(item);
+                  }
+                }}
               >
                 {columns.map((col) => (
                   <td key={col.key} className={cn("px-4 py-3.5 text-[var(--gov-text)]", col.className)}>

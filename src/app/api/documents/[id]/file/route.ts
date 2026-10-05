@@ -1,52 +1,37 @@
-import { NextRequest } from "next/server";
-import { getSessionPayload } from "@/lib/auth";
-import { store } from "@/lib/store";
-import { readStoredFile } from "@/lib/file-storage";
-import { readFile, access } from "fs/promises";
-import path from "path";
-import { unauthorized, notFound } from "@/lib/api-utils";
-import { getUploadsRoot } from "@/lib/data-paths";
+import { requireUser } from "@/server/auth";
+import { getStorage } from "@/server/storage";
+import { getDocumentRow, getPages } from "@/server/repo";
+import { fail, handle } from "@/server/http";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSessionPayload();
-  if (!session) return unauthorized();
+/** Streams the original upload or a rendered / enhanced page image. */
+export const GET = handle(async (request: Request, ctx: { params: Promise<{ id: string }> }) => {
+  await requireUser("documents");
+  const { id } = await ctx.params;
+  const doc = await getDocumentRow(id);
+  if (!doc) return fail("Document not found", 404);
+  const url = new URL(request.url);
+  const variant = url.searchParams.get("variant");
+  const pageParam = url.searchParams.get("page");
 
-  const { id } = await params;
-  const doc = store.getDocument(id);
-  if (!doc) return notFound("Document not found");
-
-  const { searchParams } = new URL(request.url);
-  const processed = searchParams.get("processed") === "true";
-  const page = parseInt(searchParams.get("page") || "1", 10);
-
-  if (processed) {
-    const processedPath = path.join(getUploadsRoot(), id, `page-${page}.png`);
-    try {
-      await access(processedPath);
-      const buffer = await readFile(/* turbopackIgnore: true */ processedPath);
-      return new Response(new Uint8Array(buffer), {
-        headers: {
-          "Content-Type": "image/png",
-          "Content-Disposition": `inline; filename="${doc.name}-page-${page}.png"`,
-          "Cache-Control": "private, max-age=3600",
-        },
-      });
-    } catch {
-      // fall through to original
-    }
+  let key = doc.storageKey;
+  let contentType = doc.fileType;
+  let filename = doc.name;
+  if (pageParam && variant !== "original") {
+    const pageNum = parseInt(pageParam, 10);
+    const page = (await getPages(id)).find((p) => p.page === pageNum);
+    if (!page) return fail("Page not rendered yet", 404);
+    key = variant === "enhanced" ? (page.enhancedKey ?? page.originalKey) : page.originalKey;
+    contentType = "image/png";
+    filename = `${doc.id}-page-${pageNum}${variant === "enhanced" ? "-enhanced" : ""}.png`;
   }
-
-  const stored = await readStoredFile(id);
-  if (!stored) return notFound("Uploaded file not found");
-
-  return new Response(new Uint8Array(stored.buffer), {
+  const data = await getStorage().get(key);
+  if (!data) return fail("File not found in repository", 404);
+  return new Response(new Uint8Array(data), {
     headers: {
-      "Content-Type": stored.mimeType,
-      "Content-Disposition": `inline; filename="${doc.name}"`,
-      "Cache-Control": "private, max-age=3600",
+      "Content-Type": contentType,
+      "Content-Disposition": `${url.searchParams.get("download") ? "attachment" : "inline"}; filename="${encodeURIComponent(filename)}"`,
+      "Cache-Control": "private, no-cache",
+      "X-Content-Type-Options": "nosniff",
     },
   });
-}
+});

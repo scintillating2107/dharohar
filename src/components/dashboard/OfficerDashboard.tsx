@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { OfficerDashboardVariant } from "@/lib/dashboard-routes";
 import { DASHBOARD_META } from "@/lib/dashboard-routes";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -51,11 +52,12 @@ const VARIANT_ICON = {
 export function OfficerDashboard({ variant }: { variant: OfficerDashboardVariant }) {
   const meta = DASHBOARD_META[variant];
   const { data, loading, error, reload } = useDashboardData();
+  const router = useRouter();
 
   if (loading) {
     return (
       <AppLayout title={meta.title}>
-        <LoadingState message="Loading dashboard..." />
+        <LoadingState message="Loading dashboard…" />
       </AppLayout>
     );
   }
@@ -198,7 +200,7 @@ export function OfficerDashboard({ variant }: { variant: OfficerDashboardVariant
                   { key: "status", header: "Status", render: (d) => <ProcessingStatusBadge status={d.status} /> },
                   { key: "uploadedAt", header: "Date", render: (d) => formatDateShort(d.uploadedAt) },
                 ]}
-                onRowClick={(d) => { window.location.href = `/documents/${d.id}`; }}
+                onRowClick={(d) => router.push(`/documents/${d.id}`)}
               />
             </Card>
           )}
@@ -313,16 +315,23 @@ function kpisFor(
     pending: { title: "Pending review", value: stats.pending_verification.toLocaleString(), icon: Clock, accent: "saffron" as const },
     issues: { title: "Validation issues", value: stats.validation_issues.toLocaleString(), icon: AlertTriangle, accent: "amber" as const },
     confidence: { title: "Avg confidence", value: formatConfidence(stats.average_confidence / 100), icon: CheckCircle, accent: "green" as const },
+    accuracy: {
+      title: "Extraction accuracy",
+      value: stats.extraction_accuracy === null ? "—" : `${stats.extraction_accuracy}%`,
+      icon: CheckCircle,
+      accent: "green" as const,
+    },
+    failed: { title: "Failed processing", value: stats.failed_documents.toLocaleString(), icon: AlertTriangle, accent: "amber" as const },
   };
 
   switch (variant) {
     case "operations":
-      return [all.docs, all.processed, all.pending, all.confidence];
+      return [all.docs, all.processed, all.failed, all.pending];
     case "verification":
-      return [all.pending, all.issues, all.verified, all.confidence];
+      return [all.pending, all.issues, all.verified, all.accuracy];
     case "survey":
       return [all.verified, all.processed, all.docs, all.confidence];
     default:
-      return [all.docs, all.processed, all.verified, all.pending, all.issues, all.confidence];
+      return [all.docs, all.processed, all.verified, all.pending, all.issues, all.accuracy];
   }
 }

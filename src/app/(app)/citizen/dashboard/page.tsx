@@ -1,247 +1,127 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { AppLayout, PageTitle } from "@/components/layout/AppLayout";
+import { useLocale } from "@/contexts/LocaleContext";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { LoadingState, ErrorState } from "@/components/ui/States";
-import { apiGet, ApiError } from "@/lib/api-client";
-import { formatDateShort } from "@/lib/utils";
-import {
-  Home,
-  FileSearch,
-  MapPin,
-  CheckCircle,
-  Clock,
-  Landmark,
-  ArrowRight,
-  Shield,
-} from "lucide-react";
-import { DashboardHero, DashboardSection } from "@/components/dashboard/DashboardHero";
+import { RecordStatusBadge } from "@/components/ui/StatusBadges";
+import { ClaimRecordButton } from "@/components/records/ClaimRecordButton";
+import { useApi } from "@/lib/use-api";
+import { formatDateShort, formatArea } from "@/lib/utils";
+import type { RecordStatus } from "@/types";
+import { Home, CheckCircle, Clock, Landmark, Search, MapPin } from "lucide-react";
 
-interface CitizenDashboardData {
+interface CitizenData {
   user: { name: string; district: string; email: string };
-  stats: {
-    my_records: number;
-    my_verified: number;
-    pending_actions: number;
-    district_verified_total: number;
-    my_applications: number;
-  };
-  myRecords: {
-    recordId: string;
-    ownerName: string;
-    khasraNumber: string;
-    village: string;
-    district: string;
-    status: string;
-    updatedAt: string;
-  }[];
-  myApplications: {
-    id: string;
-    name: string;
-    status: string;
-    uploadedAt: string;
-  }[];
-  publicVerified: {
-    recordId: string;
-    ownerName: string;
-    khasraNumber: string;
-    village: string;
-    tehsil: string;
-    district: string;
-    area: number;
-    areaUnit: string;
-    verifiedAt: string;
-  }[];
-  services: { title: string; description: string; href: string }[];
-}
-
-function statusBadge(status: string) {
-  if (status === "VERIFIED") return <Badge variant="success">Verified</Badge>;
-  if (status === "VERIFICATION_REQUIRED") return <Badge variant="warning">Under review</Badge>;
-  if (status === "REJECTED") return <Badge variant="error">Rejected</Badge>;
-  return <Badge variant="neutral">{status.replace(/_/g, " ")}</Badge>;
+  stats: { my_records: number; my_verified: number; pending_claims: number; district_verified_total: number };
+  myRecords: { recordId: string; ownerName: string; khasraNumber: string; village: string; district: string; status: RecordStatus; updatedAt: string }[];
+  claims: { id: string; recordId: string; relationship: string; status: string; reviewComment: string | null; createdAt: string; ownerName: string | null; village: string | null }[];
+  publicVerified: { recordId: string; ownerName: string; khasraNumber: string; village: string; tehsil: string; district: string; area: number; areaUnit: string; verifiedAt: string }[];
 }
 
 export default function CitizenDashboardPage() {
-  const [data, setData] = useState<CitizenDashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { t } = useLocale();
+  const { data, error, initialLoading, reload } = useApi<CitizenData>("/api/citizen/dashboard");
+  const statusLabel: Record<string, string> = { PENDING: "Pending", APPROVED: "Approved", REJECTED: "Rejected" };
 
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await apiGet<CitizenDashboardData>("/api/citizen/dashboard");
-      setData(result);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 403) {
-        setError("This page is for citizen accounts. Sign out and use citizen@dharohar.gov / citizen123.");
-      } else if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Could not load your dashboard. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  if (loading) {
-    return (
-      <AppLayout title="Citizen Portal">
-        <LoadingState message="Loading your dashboard..." />
-      </AppLayout>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <AppLayout title="Citizen Portal">
-        <ErrorState message={error || "Error"} onRetry={load} />
-      </AppLayout>
-    );
-  }
-
-  const { user, stats } = data;
+  if (initialLoading) return <AppLayout title="Citizen portal"><LoadingState /></AppLayout>;
+  if (!data) return <AppLayout title="Citizen portal"><ErrorState message={error || "Could not load"} onRetry={reload} /></AppLayout>;
 
   return (
-    <AppLayout title="Citizen Portal">
+    <AppLayout title="Citizen portal">
       <div className="space-y-8">
-        <DashboardHero
-          eyebrow="Citizen services"
-          title={`Welcome, ${user.name}`}
-          description={`${user.district} district — view verified records, track your land holdings, and access public services.`}
-          icon={Home}
-          accent="saffron"
-          actions={[
-            { href: "/records?status=VERIFIED", label: "Search records", icon: FileSearch },
-            { href: "/gis", label: "GIS map", icon: MapPin, variant: "outline" },
-          ]}
+        <PageTitle
+          title={t("Namaste, {name}", { name: data.user.name })}
+          description={t("Your land records, ownership claims and verified records in {district}.", { district: t(data.user.district) })}
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <ClaimRecordButton onDone={reload} />
+              <Link href="/records"><Button variant="outline" size="sm"><Search className="h-4 w-4" /> {t("Search records")}</Button></Link>
+            </div>
+          }
         />
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="My land records"
-            value={stats.my_records}
-            icon={Home}
-            accent="navy"
-          />
-          <StatCard
-            title="Verified holdings"
-            value={stats.my_verified}
-            icon={CheckCircle}
-            accent="green"
-          />
-          <StatCard
-            title="Pending review"
-            value={stats.pending_actions}
-            icon={Clock}
-            accent="saffron"
-          />
-          <StatCard
-            title="Verified in district"
-            value={stats.district_verified_total}
-            icon={Landmark}
-            accent="blue"
-          />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <StatCard title="My records" value={data.stats.my_records} icon={Home} accent="navy" />
+          <StatCard title="Verified" value={data.stats.my_verified} icon={CheckCircle} accent="green" />
+          <StatCard title="Claims pending" value={data.stats.pending_claims} icon={Clock} accent="saffron" />
+          <StatCard title="Verified in district" value={data.stats.district_verified_total} icon={Landmark} accent="blue" />
         </div>
 
-        <DashboardSection title="Your services & records">
-        <div className="grid lg:grid-cols-3 gap-6">
-          <Card title="Quick services" className="lg:col-span-1">
-            <ul className="space-y-3">
-              {data.services.map((s) => (
-                <li key={s.title}>
-                  <Link
-                    href={s.href}
-                    className="block rounded-lg border border-[var(--gov-border-light)] p-3 hover:border-[var(--gov-navy-light)] hover:bg-[var(--gov-bg-subtle)] transition-colors"
-                  >
-                    <p className="text-sm font-semibold text-[var(--gov-navy)]">{s.title}</p>
-                    <p className="text-xs text-[var(--gov-text-muted)] mt-1">{s.description}</p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+        <div className="grid lg:grid-cols-2 gap-5 items-start">
+          <Card title="My land records">
+            {data.myRecords.length === 0 ? (
+              <p className="text-sm text-[var(--gov-text-muted)]">
+                {t("No records linked yet. Find your record (search by khasra or village), then use “This is my land” to claim it.")}
+              </p>
+            ) : (
+              <ul className="divide-y divide-[var(--gov-border-light)]">
+                {data.myRecords.map((r) => (
+                  <li key={r.recordId} className="py-2.5 flex items-center justify-between gap-3">
+                    <Link href={`/records/${r.recordId}`} className="min-w-0">
+                      <p className="font-medium text-[var(--gov-navy)]">{t("Khasra")} {r.khasraNumber} · {t(r.village)}</p>
+                      <p className="text-xs text-[var(--gov-text-muted)] font-mono">{r.recordId}</p>
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <RecordStatusBadge status={r.status} />
+                      {r.status === "VERIFIED" && (
+                        <Link href={`/verify/${r.recordId}?print=1`} target="_blank" className="text-xs font-semibold text-[var(--gov-navy-light)]">{t("Certificate")}</Link>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
 
-          <Card title="My land records" className="lg:col-span-2">
-            {data.myRecords.length === 0 ? (
-              <div className="py-8 text-center">
-                <Shield className="h-10 w-10 text-[var(--gov-text-light)] mx-auto mb-3" />
-                <p className="text-sm text-[var(--gov-text-muted)]">
-                  No records are linked to your profile yet. Records appear here when the
-                  registered owner name matches your account name ({user.name}).
-                </p>
-                <Link href="/records?status=VERIFIED" className="inline-block mt-4">
-                  <Button variant="outline" size="sm">Browse verified records</Button>
-                </Link>
-              </div>
+          <Card title="My claims">
+            {data.claims.length === 0 ? (
+              <p className="text-sm text-[var(--gov-text-muted)]">{t("You have not submitted any claims.")}</p>
             ) : (
-              <div className="space-y-2">
-                {data.myRecords.map((r) => (
-                  <Link
-                    key={r.recordId}
-                    href={`/records/${r.recordId}`}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border border-[var(--gov-border-light)] p-3 hover:bg-[var(--gov-bg-subtle)]"
-                  >
-                    <div>
-                      <p className="font-medium text-[var(--gov-navy)]">
-                        Khasra {r.khasraNumber} — {r.village}
-                      </p>
-                      <p className="text-xs text-[var(--gov-text-muted)]">
-                        {r.recordId} · Updated {formatDateShort(r.updatedAt)}
-                      </p>
+              <ul className="divide-y divide-[var(--gov-border-light)]">
+                {data.claims.map((c) => (
+                  <li key={c.id} className="py-2.5 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span>
+                        <span className="font-mono">{c.recordId}</span> · {t(c.relationship)}
+                      </span>
+                      <Badge variant={c.status === "APPROVED" ? "success" : c.status === "REJECTED" ? "error" : "warning"}>{t(statusLabel[c.status] ?? c.status)}</Badge>
                     </div>
-                    {statusBadge(r.status)}
-                  </Link>
+                    <p className="text-xs text-[var(--gov-text-muted)]">
+                      {t("Submitted {date}", { date: formatDateShort(c.createdAt) })}
+                      {c.reviewComment ? ` · ${c.reviewComment}` : ""}
+                    </p>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </Card>
         </div>
-        </DashboardSection>
 
-        <Card title={`Recently verified in ${user.district}`}>
+        <Card title={t("Recently verified in {district}", { district: t(data.user.district) })}>
           {data.publicVerified.length === 0 ? (
-            <p className="text-sm text-[var(--gov-text-muted)] py-4">
-              No verified public records in your district yet.
-            </p>
+            <p className="text-sm text-[var(--gov-text-muted)]">{t("No verified records yet.")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-[var(--gov-text-muted)] border-b border-[var(--gov-border-light)]">
-                    <th className="pb-2 font-medium">Owner</th>
-                    <th className="pb-2 font-medium">Khasra</th>
-                    <th className="pb-2 font-medium">Village</th>
-                    <th className="pb-2 font-medium">Area</th>
-                    <th className="pb-2 font-medium" />
+                  <tr className="text-left text-xs uppercase text-[var(--gov-text-muted)]">
+                    <th className="py-2 pr-3">{t("Record")}</th><th className="pr-3">{t("Khasra")}</th><th className="pr-3">{t("Village")}</th><th className="pr-3">{t("Area")}</th><th className="pr-3">{t("Verified")}</th><th />
                   </tr>
                 </thead>
                 <tbody>
                   {data.publicVerified.map((r) => (
-                    <tr key={r.recordId} className="border-b border-[var(--gov-border-light)] last:border-0">
-                      <td className="py-2.5 font-medium text-[var(--gov-navy)]">{r.ownerName}</td>
-                      <td className="py-2.5">{r.khasraNumber}</td>
-                      <td className="py-2.5">{r.village}</td>
-                      <td className="py-2.5">{r.area} {r.areaUnit}</td>
-                      <td className="py-2.5 text-right">
-                        <Link
-                          href={`/records/${r.recordId}`}
-                          className="text-[var(--gov-navy-light)] hover:underline inline-flex items-center gap-1 text-xs font-semibold"
-                        >
-                          View <ArrowRight className="h-3 w-3" />
-                        </Link>
-                      </td>
+                    <tr key={r.recordId} className="border-t border-[var(--gov-border-light)]">
+                      <td className="py-2 font-mono text-xs"><Link href={`/records/${r.recordId}`} className="text-[var(--gov-navy-light)]">{r.recordId}</Link></td>
+                      <td>{r.khasraNumber}</td>
+                      <td className="pr-3">{t(r.village)}, {t(r.tehsil)}</td>
+                      <td>{formatArea(r.area, r.areaUnit)}</td>
+                      <td>{formatDateShort(r.verifiedAt)}</td>
+                      <td><Link href={`/gis?record=${r.recordId}`} aria-label={t("Show on map")}><MapPin className="h-4 w-4 text-[var(--gov-navy-light)]" /></Link></td>
                     </tr>
                   ))}
                 </tbody>
@@ -249,27 +129,6 @@ export default function CitizenDashboardPage() {
             </div>
           )}
         </Card>
-
-        {data.myApplications.length > 0 && (
-          <Card title="My uploaded documents">
-            <div className="space-y-2">
-              {data.myApplications.map((d) => (
-                <div
-                  key={d.id}
-                  className="flex items-center justify-between rounded-md border border-[var(--gov-border-light)] p-3"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-[var(--gov-navy)]">{d.name}</p>
-                    <p className="text-xs text-[var(--gov-text-muted)]">
-                      {formatDateShort(d.uploadedAt)}
-                    </p>
-                  </div>
-                  {statusBadge(d.status)}
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
       </div>
     </AppLayout>
   );

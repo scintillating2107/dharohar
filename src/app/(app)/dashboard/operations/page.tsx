@@ -1,7 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { OfficerDashboard } from "@/components/dashboard/OfficerDashboard";
-
-export default function OperationsDashboardPage() {
-  return <OfficerDashboard variant="operations" />;
+/** Role dashboards were merged into one role-aware dashboard. */
+export default function LegacyDashboardRedirect() {
+  redirect("/dashboard/overview");
 }

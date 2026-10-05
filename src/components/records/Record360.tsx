@@ -1,226 +1,251 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { RecordIdLink } from "@/components/records/RecordIdLink";
 import { LandRecordTable } from "@/components/records/LandRecordTable";
+import { CertificatePanel } from "@/components/records/CertificatePanel";
 import { OCRResultsView } from "@/components/documents/OCRResultsView";
-import { CompareRecordsPanel } from "@/components/validation/CompareRecordsPanel";
-import { VerificationHistory } from "@/components/verification/VerificationHistory";
 import { AuditTimeline } from "@/components/audit/AuditTimeline";
 import { ValidationSummary } from "@/components/validation/ValidationSummary";
+import { MapView } from "@/components/gis/MapView";
+import { ClaimRecordButton } from "@/components/records/ClaimRecordButton";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import { ConfidenceBadge } from "@/components/ui/StatusBadges";
-import { formatConfidence, formatDate } from "@/lib/utils";
-import type { AuditEvent, Document, LandRecord, Parcel } from "@/types";
-import { CheckSquare, Map } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ConfidenceBadge, RecordStatusBadge, ValidationStatusBadge } from "@/components/ui/StatusBadges";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocale } from "@/contexts/LocaleContext";
+import { hasPermission } from "@/lib/config";
+import { cn, formatArea, formatDate, getFieldLabel } from "@/lib/utils";
+import type { AuditEvent, Document, LandRecord, Parcel, RecordVersion } from "@/types";
+import { CheckSquare, Map as MapIcon, GitCompare } from "lucide-react";
 
-const TABS = [
-  "Overview",
-  "Document",
-  "OCR",
-  "Extracted Data",
-  "Validation",
-  "Verification",
-  "GIS",
-  "History",
-  "Certification",
-] as const;
-
-type Tab = (typeof TABS)[number];
-
-const TAB_SLUGS: Record<Tab, string> = {
-  Overview: "overview",
-  Document: "document",
-  OCR: "ocr",
-  "Extracted Data": "extracted",
-  Validation: "validation",
-  Verification: "verification",
-  GIS: "gis",
-  History: "history",
-  Certification: "certification",
-};
-
-const SLUG_TO_TAB: Record<string, Tab> = Object.fromEntries(
-  Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab as Tab])
-) as Record<string, Tab>;
-
-export function Record360({
-  record,
-  document,
-  auditEvents,
-  parcel,
-}: {
+export interface RecordDetail {
   record: LandRecord;
   document: Document | null;
   auditEvents: AuditEvent[];
   parcel: Parcel | null;
-}) {
-  const searchParams = useSearchParams();
+  versions: RecordVersion[];
+  corrections: { field: string; aiValue: string; humanValue: string; accepted: boolean }[];
+  claimed?: boolean;
+}
+
+const OFFICER_TABS = ["Overview", "Fields", "Scan & OCR", "Validation", "History", "Map", "Certificate"] as const;
+const CITIZEN_TABS = ["Overview", "Map", "Certificate"] as const;
+type Tab = (typeof OFFICER_TABS)[number];
+
+const SLUG: Record<Tab, string> = {
+  Overview: "overview",
+  Fields: "fields",
+  "Scan & OCR": "ocr",
+  Validation: "validation",
+  History: "history",
+  Map: "map",
+  Certificate: "certification",
+};
+
+function VersionDiff({ versions }: { versions: RecordVersion[] }) {
+  const { t, tx } = useLocale();
+  if (versions.length === 0) return <p className="text-sm text-[var(--gov-text-muted)]">{t("No versions recorded.")}</p>;
+  return (
+    <ol className="space-y-4">
+      {[...versions].reverse().map((v, i, arr) => {
+        const prev = arr[i + 1];
+        const changes = prev
+          ? Object.keys({ ...v.snapshot.fields, ...prev.snapshot.fields }).filter(
+              (k) => (v.snapshot.fields?.[k]?.value ?? "") !== (prev.snapshot.fields?.[k]?.value ?? "")
+            )
+          : [];
+        return (
+          <li key={v.id} className="rounded-lg border border-[var(--gov-border-light)] p-3">
+            <div className="flex flex-wrap justify-between gap-2 text-sm">
+              <span className="font-semibold text-[var(--gov-navy)]">{t("Version {n}", { n: v.version })} — {tx(v.reason)}</span>
+              <span className="text-xs text-[var(--gov-text-muted)]">{formatDate(v.created_at)} · {v.created_by_name}</span>
+            </div>
+            {changes.length > 0 && (
+              <ul className="mt-2 text-xs space-y-0.5">
+                {changes.map((k) => (
+                  <li key={k}>
+                    <span className="text-[var(--gov-text-muted)]">{t(getFieldLabel(k))}:</span>{" "}
+                    <span className="line-through text-red-700">{prev.snapshot.fields?.[k]?.value ?? "—"}</span> →{" "}
+                    <span className="text-[var(--gov-green)] font-medium">{v.snapshot.fields?.[k]?.value ?? "—"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+export function Record360({ detail }: { detail: RecordDetail }) {
+  const { record, document, parcel } = detail;
+  const { user } = useAuth();
+  const { t: tr, tx } = useLocale();
+  const params = useSearchParams();
   const router = useRouter();
-  const tabFromUrl = searchParams.get("tab");
-  const initialTab = (tabFromUrl && SLUG_TO_TAB[tabFromUrl]) || "Overview";
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const isCitizen = user?.role === "CITIZEN";
+  const can = (p: Parameters<typeof hasPermission>[1]) => (user ? hasPermission(user.role, p) : false);
+  // Only offer tabs whose data this role may load
+  const tabs: readonly Tab[] = isCitizen
+    ? CITIZEN_TABS
+    : OFFICER_TABS.filter((t) => (t === "Scan & OCR" ? can("documents") : t === "Validation" ? can("validation") : true));
+  const fromUrl = tabs.find((t) => SLUG[t] === params.get("tab"));
+  const [tab, setTab] = useState<Tab>(fromUrl ?? "Overview");
+  const canVerify = user ? hasPermission(user.role, "verification") : false;
 
-  useEffect(() => {
-    const next = searchParams.get("tab");
-    if (next && SLUG_TO_TAB[next]) setTab(SLUG_TO_TAB[next]);
-  }, [searchParams]);
-
-  const setTabAndUrl = (t: Tab) => {
+  const go = (t: Tab) => {
     setTab(t);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", TAB_SLUGS[t]);
-    router.replace(`?${params.toString()}`, { scroll: false });
+    const next = new URLSearchParams(params.toString());
+    next.set("tab", SLUG[t]);
+    router.replace(`?${next}`, { scroll: false });
   };
-
-  const certHash = useMemo(() => {
-    if (record.certification_hash) return record.certification_hash;
-    if (record.status === "VERIFIED") return `${record.record_id.slice(-8)}…verified`;
-    return null;
-  }, [record]);
 
   return (
     <div className="space-y-6">
       <div className="gov-card p-6 border-l-4 border-l-[var(--gov-saffron)]">
-        <RecordIdLink recordId={record.record_id} className="text-xl" />
-        <h1 className="text-2xl font-bold text-[var(--gov-navy)] mt-2">{record.owner_name}</h1>
+        <p className="font-mono text-sm text-[var(--gov-navy-light)]">{record.record_id} · v{record.version ?? 1}</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-[var(--gov-navy)] mt-1">{record.owner_name || tr("Owner not extracted")}</h1>
         <p className="text-[var(--gov-text-muted)]">
-          Khasra {record.khasra_number} · {record.village}, {record.district}
+          {tr("Khasra")} {record.khasra_number || "—"} · {tr("Khata")} {record.khata_number || "—"} · {[record.village, record.tehsil, record.district, record.state].filter(Boolean).map((x) => tr(x)).join(", ")}
         </p>
-        <div className="flex flex-wrap gap-2 mt-4">
-          <ConfidenceBadge confidence={record.averageConfidence} />
-          <Badge variant={record.status === "VERIFIED" ? "success" : "warning" as const}>
-            {record.status.replace(/_/g, " ")}
-          </Badge>
-          {record.status === "VERIFICATION_REQUIRED" && (
+        <div className="flex flex-wrap items-center gap-2 mt-4">
+          <RecordStatusBadge status={record.status} />
+          {!isCitizen && record.status !== "VERIFIED" && <ConfidenceBadge confidence={record.averageConfidence} />}
+          {!isCitizen && record.status !== "VERIFIED" && record.validation && <ValidationStatusBadge status={record.validation.validation_status} />}
+          {canVerify && record.status === "VERIFICATION_REQUIRED" && (
             <Link href={`/verification/${record.record_id}`}>
-              <Button size="sm"><CheckSquare className="h-4 w-4" /> Verify</Button>
+              <Button size="sm"><CheckSquare className="h-4 w-4" /> {tr("Verify")}</Button>
             </Link>
           )}
-          <Link href="/gis">
-            <Button variant="outline" size="sm"><Map className="h-4 w-4" /> GIS</Button>
+          {can("validation") && (
+            <Link href={`/compare?recordId=${record.record_id}`}>
+              <Button size="sm" variant="outline"><GitCompare className="h-4 w-4" /> {tr("Compare")}</Button>
+            </Link>
+          )}
+          <Link href={`/gis?record=${record.record_id}`}>
+            <Button size="sm" variant="outline"><MapIcon className="h-4 w-4" /> {tr("Map")}</Button>
           </Link>
-          <Link href="/demo/workflow">
-            <Button variant="outline" size="sm">Guided workflow</Button>
-          </Link>
+          {isCitizen && !detail.claimed && <ClaimRecordButton recordId={record.record_id} />}
         </div>
       </div>
 
-      <nav className="flex flex-wrap gap-1 border-b border-[var(--gov-border-light)] pb-1">
-        {TABS.map((t) => (
+      <nav className="flex gap-1 border-b border-[var(--gov-border-light)] pb-1 overflow-x-auto" aria-label={tr("Record sections")}>
+        {tabs.map((t) => (
           <button
             key={t}
             type="button"
-            onClick={() => setTabAndUrl(t)}
+            onClick={() => go(t)}
+            aria-current={tab === t ? "page" : undefined}
             className={cn(
-              "px-3 py-2 text-xs sm:text-sm font-semibold rounded-t-md",
-              tab === t
-                ? "bg-[var(--gov-navy)] text-white"
-                : "text-[var(--gov-text-muted)] hover:bg-[var(--gov-bg)]"
+              "px-3 py-2 text-xs sm:text-sm font-semibold rounded-t-md whitespace-nowrap flex-shrink-0",
+              tab === t ? "bg-[var(--gov-navy)] text-white" : "text-[var(--gov-text-muted)] hover:bg-[var(--gov-bg)]"
             )}
           >
-            {t}
+            {tr(t)}
           </button>
         ))}
       </nav>
 
       {tab === "Overview" && (
         <div className="grid md:grid-cols-3 gap-4">
-          <Card title="Lifecycle">
-            <ul className="text-sm space-y-2 text-[var(--gov-text-muted)]">
-              <li>Uploaded {document ? formatDate(document.uploadedAt) : "—"}</li>
-              <li>Confidence {formatConfidence(record.averageConfidence)}</li>
-              <li>Validation {record.validation?.validation_status || "—"}</li>
-            </ul>
+          <Card title="Land">
+            <dl className="text-sm space-y-1.5">
+              <div><dt className="text-[var(--gov-text-muted)]">{tr("Area")}</dt><dd className="font-medium">{formatArea(record.area, tr(record.area_unit), record.area_hectares)}</dd></div>
+              <div><dt className="text-[var(--gov-text-muted)]">{tr("Land Classification")}</dt><dd>{record.land_type ? tr(record.land_type) : "—"}</dd></div>
+              <div><dt className="text-[var(--gov-text-muted)]">{tr("Survey Number")}</dt><dd>{record.survey_number ?? "—"}</dd></div>
+              <div><dt className="text-[var(--gov-text-muted)]">{tr("Mutation")}</dt><dd>{record.mutation_number ?? "—"}{record.mutation_date ? ` (${record.mutation_date})` : ""}</dd></div>
+            </dl>
           </Card>
-          <Card title="Quick links">
-            <div className="flex flex-col gap-2 text-sm">
-              {document && <Link href={`/documents/${document.id}`} className="text-[var(--gov-navy-light)] font-semibold">Open document</Link>}
-              <Link href={`/audit?recordId=${record.record_id}`} className="text-[var(--gov-navy-light)] font-semibold">Audit log</Link>
-              <Link href="/trust" className="text-[var(--gov-navy-light)] font-semibold">Certification</Link>
-            </div>
-          </Card>
-          <Card title="GIS">
-            {parcel ? (
-              <p className="text-sm">Parcel {parcel.parcel_id} · {parcel.area} {parcel.area_unit}</p>
+          <Card title="Owners">
+            {record.owners?.length ? (
+              <ul className="text-sm space-y-1">
+                {record.owners.map((o, i) => (
+                  <li key={i}>
+                    {o.name}
+                    {o.relation_name && <span className="text-[var(--gov-text-muted)]"> · {tr(o.relation_type ?? "S/O")} {o.relation_name}</span>}
+                    {o.share !== undefined && <span className="text-[var(--gov-text-muted)]"> · {o.share}</span>}
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <p className="text-sm text-[var(--gov-text-muted)]">No parcel linked yet.</p>
+              <p className="text-sm">{record.owner_name}{record.father_name ? ` · ${tr("S/O")} ${record.father_name}` : ""}</p>
             )}
           </Card>
+          <Card title="Lifecycle">
+            <ul className="text-sm space-y-1.5 text-[var(--gov-text-muted)]">
+              <li>{tr("Created")} {formatDate(record.createdAt)}</li>
+              <li>{tr("Updated")} {formatDate(record.updatedAt)}</li>
+              {record.verifiedAt && <li className="text-[var(--gov-green)]">{tr("Verified {date} by {name}", { date: formatDate(record.verifiedAt), name: record.verifiedBy ?? "" })}</li>}
+              {document && can("documents") && (
+                <li>
+                  {tr("Source")}: <Link href={`/documents/${document.id}`} className="text-[var(--gov-navy-light)] font-semibold">{document.name}</Link>
+                </li>
+              )}
+            </ul>
+          </Card>
         </div>
       )}
 
-      {tab === "Document" && document && (
-        <Card title={document.name}>
-          <p className="text-sm text-[var(--gov-text-muted)]">{document.id} · {document.pageCount} pages</p>
-          <Link href={`/documents/${document.id}/quality`} className="inline-block mt-3">
-            <Button variant="outline" size="sm">Preview & quality</Button>
-          </Link>
-        </Card>
-      )}
+      {tab === "Fields" && <LandRecordTable record={record} />}
 
-      {tab === "OCR" && document && record.ocr && (
-        <OCRResultsView document={document} ocr={record.ocr} />
-      )}
+      {tab === "Scan & OCR" &&
+        (document && record.ocr ? (
+          <OCRResultsView document={document} ocr={record.ocr} />
+        ) : (
+          <p className="text-sm text-[var(--gov-text-muted)]">{tr("OCR output is not available.")}</p>
+        ))}
 
-      {tab === "Extracted Data" && <LandRecordTable record={record} />}
-
-      {tab === "Validation" && (
-        <div className="space-y-6">
-          {record.validation && <ValidationSummary validation={record.validation} />}
-          <CompareRecordsPanel record={record} />
-        </div>
-      )}
-
-      {tab === "Verification" && (
-        <VerificationHistory events={auditEvents} record={record} />
-      )}
-
-      {tab === "GIS" && (
-        <Card title="Parcel">
-          {parcel ? (
-            <dl className="text-sm space-y-2">
-              <div><dt className="text-[var(--gov-text-muted)]">Khasra</dt><dd className="font-semibold">{parcel.khasra_number}</dd></div>
-              <div><dt className="text-[var(--gov-text-muted)]">Area</dt><dd>{parcel.area} {parcel.area_unit}</dd></div>
-              <div><dt className="text-[var(--gov-text-muted)]">Status</dt><dd>{parcel.status}</dd></div>
-            </dl>
-          ) : (
-            <p className="text-sm text-[var(--gov-text-muted)]">Link parcel from GIS after verification.</p>
-          )}
-        </Card>
-      )}
+      {tab === "Validation" &&
+        (record.validation ? <ValidationSummary validation={record.validation} /> : <p className="text-sm text-[var(--gov-text-muted)]">{tr("Not validated.")}</p>)}
 
       {tab === "History" && (
-        <Card title="Audit trail">
-          <AuditTimeline events={auditEvents} variant="full" />
+        <div className="grid lg:grid-cols-2 gap-6">
+          <Card title="Versions">
+            <VersionDiff versions={detail.versions} />
+          </Card>
+          <div className="space-y-6">
+            {detail.corrections.length > 0 && (
+              <Card title="AI vs verified values">
+                <ul className="text-sm space-y-1">
+                  {detail.corrections.map((c) => (
+                    <li key={c.field} className="flex justify-between gap-3">
+                      <span className="text-[var(--gov-text-muted)]">{tr(getFieldLabel(c.field))}</span>
+                      {c.accepted ? (
+                        <span className="text-[var(--gov-green)]">{tr("accepted")}</span>
+                      ) : (
+                        <span>
+                          <span className="line-through text-red-700">{c.aiValue}</span> → <span className="text-[var(--gov-green)]">{c.humanValue || tr("removed")}</span>
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+            <Card title="Audit trail">
+              <AuditTimeline events={detail.auditEvents} variant="full" />
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {tab === "Map" && (
+        <Card title="Parcel">
+          {parcel ? (
+            <>
+              <MapView parcels={[parcel]} selectedId={parcel.parcel_id} height="420px" />
+              <p className="text-xs text-[var(--gov-text-muted)] mt-2">{tx(parcel.location_note)}</p>
+            </>
+          ) : (
+            <p className="text-sm text-[var(--gov-text-muted)]">{tr("No parcel linked yet.")}</p>
+          )}
         </Card>
       )}
 
-      {tab === "Certification" && (
-        <Card title="Record certification">
-          <p className="text-sm text-[var(--gov-text-muted)] mb-4">
-            Cryptographic hash of the verified record snapshot for tamper-evident verification.
-          </p>
-          {record.status === "VERIFIED" && certHash ? (
-            <p className="font-mono text-xs break-all">Record hash: {certHash}</p>
-          ) : (
-            <p className="text-sm text-amber-800">Certificate is available after officer approval and verification.</p>
-          )}
-          <Link href={`/trust?record=${record.record_id}`} className="inline-block mt-4">
-            <Button size="sm" variant="outline">Open trust layer</Button>
-          </Link>
-          {record.status === "VERIFIED" && (
-            <Link href={`/trust/verify?record=${record.record_id}`} className="inline-block mt-4 ml-2">
-              <Button size="sm">Verify certificate</Button>
-            </Link>
-          )}
-        </Card>
-      )}
+      {tab === "Certificate" && <CertificatePanel recordId={record.record_id} />}
     </div>
   );
 }

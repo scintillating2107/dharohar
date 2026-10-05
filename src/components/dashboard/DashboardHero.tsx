@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useLocale } from "@/contexts/LocaleContext";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +21,7 @@ export function DashboardHero({
   accent?: "navy" | "saffron" | "green" | "blue";
   actions?: { href: string; label: string; icon?: LucideIcon; variant?: "outline" }[];
 }) {
+  const { t } = useLocale();
   const accentBorder = {
     navy: "border-l-[var(--gov-navy)]",
     saffron: "border-l-[var(--gov-saffron)]",
@@ -36,13 +40,13 @@ export function DashboardHero({
           )}
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--gov-text-muted)]">
-              {eyebrow}
+              {t(eyebrow)}
             </p>
             <h1 className="text-2xl sm:text-3xl font-bold text-[var(--gov-navy)] mt-1 tracking-tight">
-              {title}
+              {t(title)}
             </h1>
             <p className="text-sm text-[var(--gov-text-muted)] mt-2 max-w-2xl leading-relaxed">
-              {description}
+              {t(description)}
             </p>
           </div>
         </div>
@@ -56,7 +60,7 @@ export function DashboardHero({
                   variant={action.variant === "outline" ? "outline" : "primary"}
                 >
                   {action.icon && <action.icon className="h-4 w-4" />}
-                  {action.label}
+                  {t(action.label)}
                 </Button>
               );
               return external ? (
@@ -85,13 +89,14 @@ export function DashboardSection({
   action?: ReactNode;
   children: ReactNode;
 }) {
+  const { t } = useLocale();
   return (
     <section className="space-y-4">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h2 className="gov-section-title">{title}</h2>
+          <h2 className="gov-section-title">{t(title)}</h2>
           {description && (
-            <p className="text-sm text-[var(--gov-text-muted)] mt-2">{description}</p>
+            <p className="text-sm text-[var(--gov-text-muted)] mt-2">{t(description)}</p>
           )}
         </div>
         {action}

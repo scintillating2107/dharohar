@@ -1,31 +1,38 @@
-import { NextRequest } from "next/server";
-import { getSessionPayload } from "@/lib/auth";
-import { store } from "@/lib/store";
-import { apiSuccess, unauthorized } from "@/lib/api-utils";
+import { and, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
+import { requireUser } from "@/server/auth";
+import { claimedRecordIds } from "@/server/citizen";
+import { getDb } from "@/server/db/client";
+import { parcels, records } from "@/server/db/schema";
+import { toParcel } from "@/server/repo";
+import { handle, ok } from "@/server/http";
 
-export async function GET(request: NextRequest) {
-  const session = await getSessionPayload();
-  if (!session) return unauthorized();
-
-  const { searchParams } = new URL(request.url);
-  const district = searchParams.get("district");
-  const village = searchParams.get("village");
-  const status = searchParams.get("status");
-  const search = searchParams.get("search")?.toLowerCase();
-
-  let parcels = [...store.parcels];
-
-  if (district) parcels = parcels.filter((p) => p.district === district);
-  if (status) parcels = parcels.filter((p) => p.status === status);
-  if (village) parcels = parcels.filter((p) => p.village === village);
+export const GET = handle(async (request: Request) => {
+  const user = await requireUser("gis");
+  const url = new URL(request.url);
+  const conds: SQL[] = [];
+  const district = url.searchParams.get("district");
+  if (district) conds.push(ilike(records.district, district));
+  const village = url.searchParams.get("village");
+  if (village) conds.push(ilike(records.village, village));
+  const status = url.searchParams.get("status");
+  if (status) conds.push(eq(records.status, status));
+  const geometry = url.searchParams.get("geometry");
+  if (geometry) conds.push(eq(parcels.geometrySource, geometry));
+  const search = url.searchParams.get("search")?.trim();
   if (search) {
-    parcels = parcels.filter(
-      (p) =>
-        p.khasra_number.toLowerCase().includes(search) ||
-        p.owner_name.toLowerCase().includes(search) ||
-        p.village.toLowerCase().includes(search)
-    );
+    const q = `%${search}%`;
+    conds.push(or(ilike(records.khasraNumber, q), ilike(records.ownerName, q), ilike(records.village, q), ilike(records.id, q))!);
   }
-
-  return apiSuccess({ parcels });
-}
+  if (user.role === "CITIZEN") {
+    const claimed = await claimedRecordIds(user.id);
+    conds.push(claimed.length ? or(eq(records.status, "VERIFIED"), inArray(records.id, claimed))! : eq(records.status, "VERIFIED"));
+  }
+  const db = await getDb();
+  const rows = await db
+    .select({ parcel: parcels, record: records })
+    .from(parcels)
+    .innerJoin(records, eq(records.id, parcels.recordId))
+    .where(conds.length ? and(...conds) : undefined)
+    .limit(2000);
+  return ok({ parcels: rows.map((r) => toParcel(r.parcel, r.record)) });
+});

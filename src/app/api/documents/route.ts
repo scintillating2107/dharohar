@@ -1,130 +1,62 @@
-import { NextRequest } from "next/server";
-import { getSessionPayload } from "@/lib/auth";
-import { store, generateId, createInitialSteps } from "@/lib/store";
-import { saveUploadedFile, fileUrl } from "@/lib/file-storage";
-import {
-  ALLOWED_FILE_TYPES,
-  MAX_FILE_SIZE_BYTES,
-} from "@/lib/config";
-import { apiSuccess, unauthorized, apiError } from "@/lib/api-utils";
-import type { Document } from "@/types";
+import { requireUser } from "@/server/auth";
+import { createDocument } from "@/server/documents-service";
+import { scheduleJobRun } from "@/server/kick";
+import { getDocument, listDocuments } from "@/server/repo";
+import { fail, handle, ok, paginated, pagination } from "@/server/http";
 
-export async function GET(request: NextRequest) {
-  const session = await getSessionPayload();
-  if (!session) return unauthorized();
+export const maxDuration = 300;
 
-  const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get("page") || "1");
-  const pageSize = parseInt(searchParams.get("pageSize") || "10");
-  const status = searchParams.get("status");
-  const search = searchParams.get("search")?.toLowerCase();
-
-  let items = [...store.documents];
-
-  if (status) {
-    items = items.filter((d) => d.status === status);
-  }
-  if (search) {
-    items = items.filter(
-      (d) =>
-        d.name.toLowerCase().includes(search) ||
-        d.id.toLowerCase().includes(search) ||
-        d.district?.toLowerCase().includes(search)
-    );
-  }
-
-  const total = items.length;
-  const start = (page - 1) * pageSize;
-  const paginated = items.slice(start, start + pageSize);
-
-  return apiSuccess({
-    items: paginated,
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
+export const GET = handle(async (request: Request) => {
+  const user = await requireUser("documents");
+  const url = new URL(request.url);
+  const { page, pageSize, limit, offset } = pagination(url);
+  const { items, total } = await listDocuments({
+    status: url.searchParams.get("status"),
+    search: url.searchParams.get("search")?.trim() || null,
+    uploadedBy: url.searchParams.get("mine") === "true" ? user.id : null,
+    limit,
+    offset,
   });
+  return paginated(items, total, page, pageSize);
+});
+
+function text(form: FormData, key: string, max = 200): string | null {
+  const v = form.get(key);
+  if (typeof v !== "string") return null;
+  return v.trim().slice(0, max) || null;
 }
 
-export async function POST(request: NextRequest) {
-  const session = await getSessionPayload();
-  if (!session) return unauthorized();
+export const POST = handle(async (request: Request) => {
+  const user = await requireUser("upload");
+  const form = await request.formData();
+  const file = form.get("file");
+  if (!(file instanceof File)) return fail("No file provided");
+  const autoProcess = text(form, "autoProcess") === "true";
 
-  try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    const district = (formData.get("district") as string | null)?.trim() || undefined;
-    const state = (formData.get("state") as string | null)?.trim() || "Uttar Pradesh";
-    const nameOverride = (formData.get("name") as string | null)?.trim();
-    const tehsil = (formData.get("tehsil") as string | null)?.trim() || undefined;
-    const village = (formData.get("village") as string | null)?.trim() || undefined;
-    const recordYear = (formData.get("recordYear") as string | null)?.trim() || undefined;
-    const recordType = (formData.get("recordType") as string | null)?.trim() || undefined;
-    const sourceOffice = (formData.get("sourceOffice") as string | null)?.trim() || undefined;
-    const language = (formData.get("language") as string | null)?.trim() || undefined;
-    const description = (formData.get("description") as string | null)?.trim() || undefined;
-    const priority = (formData.get("priority") as string | null)?.trim() || undefined;
+  const { id, duplicateOf } = await createDocument({
+    buffer: Buffer.from(await file.arrayBuffer()),
+    fileName: file.name,
+    actor: { id: user.id, name: user.name, district: user.district },
+    autoProcess,
+    meta: {
+      name: text(form, "name"),
+      district: text(form, "district"),
+      state: text(form, "state"),
+      tehsil: text(form, "tehsil"),
+      village: text(form, "village"),
+      recordYear: text(form, "recordYear", 4),
+      recordType: text(form, "recordType"),
+      sourceOffice: text(form, "sourceOffice"),
+      language: text(form, "language", 10),
+      description: text(form, "description", 2000),
+      priority: text(form, "priority", 10),
+    },
+  });
+  if (autoProcess) scheduleJobRun();
 
-    if (!file) return apiError("No file provided");
-
-    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-      return apiError("Invalid file type. Allowed: PDF, JPG, JPEG, PNG");
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      return apiError(`File size exceeds ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB limit`);
-    }
-
-    const user = store.users.find((u) => u.id === session.userId);
-    const docId = generateId("DOC-");
-
-  const { pageCount } = await saveUploadedFile(docId, file);
-
-    const doc: Document = {
-      id: docId,
-      name: nameOverride || file.name,
-      fileType: file.type,
-      fileSize: file.size,
-      pageCount,
-      uploadedBy: session.userId,
-      uploadedByName: user?.name || "Unknown",
-      uploadedAt: new Date().toISOString(),
-      status: "UPLOADED",
-      steps: createInitialSteps().map((s, i) =>
-        i === 0
-          ? { ...s, status: "completed" as const, completedAt: new Date().toISOString() }
-          : s
-      ),
-      pages: Array.from({ length: pageCount }, (_, i) => ({
-        page: i + 1,
-        imageUrl: fileUrl(docId, i + 1, true),
-      })),
-      district: district || user?.district,
-      state,
-      tehsil,
-      village,
-      recordYear,
-      recordType,
-      sourceOffice,
-      language,
-      description,
-      priority,
-    };
-
-    store.addDocument(doc);
-
-    store.addAuditEvent({
-      id: generateId("AE"),
-      documentId: docId,
-      timestamp: new Date().toISOString(),
-      actor: session.userId,
-      actorName: user?.name || "Unknown",
-      action: "DOCUMENT_UPLOADED",
-      details: `${file.name} uploaded`,
-    });
-
-    return apiSuccess({ document: doc, message: "Document uploaded successfully" });
-  } catch {
-    return apiError("Upload failed", 500);
-  }
-}
+  return ok({
+    document: await getDocument(id),
+    duplicateOf,
+    message: duplicateOf ? `Uploaded. An identical file already exists as ${duplicateOf}.` : "Document uploaded",
+  });
+});

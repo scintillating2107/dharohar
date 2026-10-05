@@ -1,53 +1,88 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Presentation,
   LayoutDashboard,
   FileText,
   Upload,
   CheckSquare,
   ShieldCheck,
   Map,
-  Link2,
-  Clapperboard,
+  BadgeCheck,
   ClipboardList,
   Settings,
   Home,
   Users,
   User,
+  BarChart3,
+  Plug,
+  UserCheck,
+  SlidersHorizontal,
+  Library,
+  Info,
 } from "lucide-react";
-import { DEMO_RECORD_ID } from "@/lib/record-ids";
+import type { Permission } from "@/lib/config";
 
 export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  permission: string;
-  /** Highlight for judges / demo walkthrough */
-  highlight?: boolean;
+  permission: Permission;
 }
 
-/** Single flat menu — no nested sections. */
-export const MAIN_NAV: NavItem[] = [
-  { href: "/dashboard/overview", label: "Home", icon: LayoutDashboard, permission: "dashboard" },
-  { href: "/demo", label: "Demo hub", icon: Clapperboard, permission: "dashboard", highlight: true },
-  { href: "/demo/workflow", label: "Digitization demo", icon: Clapperboard, permission: "dashboard" },
-  { href: "/demo/portal", label: "GIS & ledger demo", icon: Map, permission: "dashboard" },
-  { href: "/documents/upload", label: "Upload", icon: Upload, permission: "documents" },
-  { href: "/documents", label: "Documents", icon: FileText, permission: "documents" },
-  { href: "/records", label: "Land records", icon: FileText, permission: "records" },
-  { href: `/records/${DEMO_RECORD_ID}`, label: "Sample record", icon: FileText, permission: "records" },
-  { href: "/verification", label: "Verification", icon: CheckSquare, permission: "verification" },
-  { href: "/validation", label: "Validation", icon: ShieldCheck, permission: "validation" },
-  { href: "/gis", label: "Map", icon: Map, permission: "gis" },
-  { href: "/trust", label: "Certification", icon: Link2, permission: "audit" },
-  { href: "/audit", label: "Audit log", icon: ClipboardList, permission: "audit" },
-  { href: "/settings", label: "Settings", icon: Settings, permission: "profile" },
-];
+export interface NavGroup {
+  title: string | null;
+  items: NavItem[];
+}
 
-export const SECONDARY_NAV: NavItem[] = [
-  { href: "/citizen/dashboard", label: "Citizen portal", icon: Home, permission: "citizen" },
-  { href: "/users", label: "Users", icon: Users, permission: "users" },
-  { href: "/profile", label: "Profile", icon: User, permission: "profile" },
+/** Sidebar, grouped by purpose. Items a role cannot use are hidden; empty groups are dropped. */
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    title: null,
+    items: [
+      { href: "/dashboard/overview", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
+      { href: "/citizen/dashboard", label: "Citizen portal", icon: Home, permission: "citizen" },
+    ],
+  },
+  {
+    title: "Work",
+    items: [
+      { href: "/documents/upload", label: "Upload", icon: Upload, permission: "upload" },
+      { href: "/documents", label: "Documents", icon: FileText, permission: "documents" },
+      { href: "/verification", label: "Verification", icon: CheckSquare, permission: "verification" },
+      { href: "/claims", label: "Ownership claims", icon: UserCheck, permission: "claims" },
+    ],
+  },
+  {
+    title: "Records",
+    items: [
+      { href: "/records", label: "Land records", icon: Library, permission: "records" },
+      { href: "/validation", label: "Validation", icon: ShieldCheck, permission: "validation" },
+      { href: "/gis", label: "Map", icon: Map, permission: "gis" },
+      { href: "/trust", label: "Certificates", icon: BadgeCheck, permission: "audit" },
+    ],
+  },
+  {
+    title: "Insights",
+    items: [
+      { href: "/analytics", label: "Analytics", icon: BarChart3, permission: "analytics" },
+      { href: "/audit", label: "Audit log", icon: ClipboardList, permission: "audit" },
+      { href: "/showcase", label: "Workflow demo", icon: Presentation, permission: "documents" },
+    ],
+  },
+  {
+    title: "Administration",
+    items: [
+      { href: "/users", label: "Users", icon: Users, permission: "users" },
+      { href: "/admin", label: "System settings", icon: SlidersHorizontal, permission: "settings_admin" },
+      { href: "/integrations", label: "Integrations", icon: Plug, permission: "integrations" },
+    ],
+  },
+  {
+    title: "Account",
+    items: [
+      { href: "/settings", label: "My settings", icon: Settings, permission: "profile" },
+      { href: "/profile", label: "Profile", icon: User, permission: "profile" },
+      { href: "/about", label: "About", icon: Info, permission: "profile" },
+    ],
+  },
 ];
-
-/** @deprecated Use MAIN_NAV — kept so older imports do not break. */
-export const NAV_SECTIONS = [{ title: "Menu", items: MAIN_NAV }];

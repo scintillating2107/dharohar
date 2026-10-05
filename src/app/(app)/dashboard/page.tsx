@@ -18,7 +18,7 @@ export default function DashboardRedirectPage() {
 
   return (
     <div className="min-h-[50vh] flex items-center justify-center">
-      <LoadingState message="Opening your dashboard..." />
+      <LoadingState message="Opening your dashboard…" />
     </div>
   );
 }

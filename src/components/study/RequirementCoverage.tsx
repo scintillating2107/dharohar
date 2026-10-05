@@ -8,6 +8,8 @@ import {
   type RequirementStatus,
 } from "@/lib/solution-requirements";
 import { cn } from "@/lib/utils";
+import { DEMO_LOGINS } from "@/lib/config";
+import { useLocale } from "@/contexts/LocaleContext";
 import { CheckCircle2, CircleDashed, AlertCircle, ChevronRight } from "lucide-react";
 
 const STATUS_META: Record<
@@ -35,16 +37,17 @@ const STATUS_META: Record<
 };
 
 export function RequirementCoverageSummary({ compact }: { compact?: boolean }) {
+  const { t } = useLocale();
   const stats = solutionRequirementStats();
   const pct = Math.round(((stats.implemented + stats.partial * 0.5) / stats.total) * 100);
 
   if (compact) {
     return (
       <div className="flex flex-wrap items-center gap-3 text-xs">
-        <span className="font-bold text-[var(--gov-navy)]">Solution coverage ~{pct}%</span>
-        <span className="text-[var(--gov-green)] font-semibold">{stats.implemented} live</span>
-        <span className="text-amber-700 font-semibold">{stats.partial} partial</span>
-        <span className="text-[var(--gov-text-muted)]">{stats.roadmap} roadmap</span>
+        <span className="font-bold text-[var(--gov-navy)]">{t("Solution coverage ~{n}%", { n: pct })}</span>
+        <span className="text-[var(--gov-green)] font-semibold">{t("{n} live", { n: stats.implemented })}</span>
+        <span className="text-amber-700 font-semibold">{t("{n} partial", { n: stats.partial })}</span>
+        <span className="text-[var(--gov-text-muted)]">{t("{n} roadmap", { n: stats.roadmap })}</span>
       </div>
     );
   }
@@ -54,16 +57,16 @@ export function RequirementCoverageSummary({ compact }: { compact?: boolean }) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--gov-text-muted)]">
-            Solution requirements
+            {t("Solution requirements")}
           </p>
           <p className="text-lg font-bold text-[var(--gov-navy)] mt-1">
-            {stats.implemented} active · {stats.partial} partial · {stats.roadmap} planned
+            {t("{a} active · {b} partial · {c} planned", { a: stats.implemented, b: stats.partial, c: stats.roadmap })}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div
             className="relative h-14 w-14 rounded-full flex items-center justify-center bg-[var(--gov-navy)] text-white font-bold text-sm"
-            aria-label={`Approximate coverage ${pct} percent`}
+            aria-label={t("Approximate coverage {n} percent", { n: pct })}
           >
             {pct}%
           </div>
@@ -71,7 +74,7 @@ export function RequirementCoverageSummary({ compact }: { compact?: boolean }) {
             href="/about"
             className="text-sm font-semibold text-[var(--gov-navy-light)] hover:underline inline-flex items-center gap-1"
           >
-            Full scope <ChevronRight className="h-4 w-4" />
+            {t("Full scope")} <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
       </div>
@@ -81,6 +84,7 @@ export function RequirementCoverageSummary({ compact }: { compact?: boolean }) {
 }
 
 export function RequirementCoverageGrid() {
+  const { t } = useLocale();
   return (
     <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
       {SOLUTION_REQUIREMENTS.map((req) => {
@@ -96,15 +100,15 @@ export function RequirementCoverageGrid() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", meta.dot)} />
-                  <p className="text-sm font-semibold text-[var(--gov-navy)] leading-snug">{req.label}</p>
+                  <p className="text-sm font-semibold text-[var(--gov-navy)] leading-snug">{t(req.label)}</p>
                 </div>
-                <p className="text-[11px] text-[var(--gov-text-muted)] mt-1 leading-relaxed">{req.summary}</p>
+                <p className="text-[11px] text-[var(--gov-text-muted)] mt-1 leading-relaxed">{t(req.summary)}</p>
                 {req.demoHint && (
                   <p className="text-[10px] font-medium text-[var(--gov-navy-light)] mt-2">
-                    In application: {req.demoHint}
+                    {t("Where")}: {t(req.demoHint)}
                   </p>
                 )}
-                <p className="text-[10px] uppercase tracking-wider text-[var(--gov-text-light)] mt-1">{meta.label}</p>
+                <p className="text-[10px] uppercase tracking-wider text-[var(--gov-text-light)] mt-1">{t(meta.label)}</p>
               </div>
             </div>
           </div>
@@ -115,10 +119,12 @@ export function RequirementCoverageGrid() {
 }
 
 export function DemoWalkthrough() {
+  const { t } = useLocale();
+  const demo = new Set(DEMO_LOGINS.map((d) => d.email));
   return (
     <div className="space-y-3">
       <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--gov-text-muted)]">
-        Standard processing sequence
+        {t("Standard processing sequence")}
       </p>
       <ol className="space-y-2">
         {DEMO_WALKTHROUGH_STEPS.map((s) => (
@@ -127,9 +133,9 @@ export function DemoWalkthrough() {
               {s.step}
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-[var(--gov-navy)]">{s.role}</p>
-              <p className="text-xs text-[var(--gov-text-muted)] mt-0.5">{s.action}</p>
-              <p className="text-[10px] text-[var(--gov-text-light)] mt-1 font-mono">{s.email}</p>
+              <p className="text-sm font-semibold text-[var(--gov-navy)]">{t(s.role)}</p>
+              <p className="text-xs text-[var(--gov-text-muted)] mt-0.5">{t(s.action)}</p>
+              {demo.has(s.email) && <p className="text-[10px] text-[var(--gov-text-light)] mt-1 font-mono">{s.email}</p>}
             </div>
           </li>
         ))}
